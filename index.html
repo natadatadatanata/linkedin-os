@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nat's LinkedIn OS</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bar:rgba(255,255,255,0.82);
+  --win:#fff;
+  --sb:#f5f5f7;
+  --border:rgba(0,0,0,0.1);
+  --bs:rgba(0,0,0,0.05);
+  --text:#1d1d1f;
+  --t2:#6e6e73;
+  --t3:#aeaeb2;
+  --blue:#0071e3;
+  --bl:rgba(0,113,227,0.10);
+  --bm:rgba(0,113,227,0.16);
+  --green:#28cd41;
+  --gl:rgba(40,205,65,0.10);
+  --red:#ff3b30;
+  --rl:rgba(255,59,48,0.08);
+  --orange:#ff9500;
+  --r:12px;
+}
+html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;font-size:13px;color:var(--text);cursor:default;background:linear-gradient(160deg,#fce4ec 0%,#e8eaf6 50%,#e0f7fa 100%);}
+
+/* MENUBAR */
+.mb{position:fixed;top:0;left:0;right:0;height:28px;background:var(--bar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100;}
+.mb-l{display:flex;align-items:center;gap:16px;}
+.mb-r{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--t2);}
+.mb-app{font-weight:600;font-size:13px;}
+.mb-item{opacity:0.7;font-size:13px;}
+.mb-mono{font-family:'DM Mono',monospace;font-size:11px;}
+
+/* DESKTOP */
+.desktop{position:fixed;top:28px;bottom:78px;left:0;right:0;display:flex;align-items:center;justify-content:center;padding:16px;}
+
+/* WINDOW */
+.win{background:var(--win);border-radius:var(--r);box-shadow:0 20px 60px rgba(0,0,0,0.22),0 0 0 0.5px rgba(0,0,0,0.18);width:100%;max-width:900px;height:100%;max-height:660px;display:flex;flex-direction:column;overflow:hidden;animation:wo 0.2s cubic-bezier(0.2,0,0,1) both;}
+@keyframes wo{from{opacity:0;transform:scale(0.96);}to{opacity:1;transform:scale(1);}}
+
+/* TITLEBAR */
+.tbar{height:52px;background:var(--sb);border-bottom:0.5px solid var(--border);display:flex;align-items:center;padding:0 16px;flex-shrink:0;}
+.traffic{display:flex;gap:8px;margin-right:16px;}
+.dot{width:12px;height:12px;border-radius:50%;cursor:pointer;border:0.5px solid rgba(0,0,0,0.08);}
+.dr{background:#ff5f57;}.dy{background:#febc2e;}.dg{background:#28c840;}
+.wt{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--t2);}
+
+/* BODY */
+.wb{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+.sb{width:190px;background:var(--sb);border-right:0.5px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;padding:12px 0;overflow-y:auto;}
+.sb-s{margin-bottom:18px;}
+.sb-h{font-size:11px;font-weight:600;color:var(--t3);letter-spacing:0.05em;text-transform:uppercase;padding:0 16px;margin-bottom:4px;}
+.sb-i{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:13px;color:var(--t2);cursor:pointer;border-radius:7px;margin:0 8px;transition:background 0.1s;}
+.sb-i:hover{background:rgba(0,0,0,0.04);}
+.sb-i.on{background:rgba(0,113,227,0.10);color:var(--blue);font-weight:500;}
+.sb-ic{font-size:14px;width:18px;text-align:center;}
+.sb-bot{margin-top:auto;padding-top:12px;border-top:0.5px solid var(--bs);}
+
+/* CONTENT */
+.ct{flex:1;overflow-y:auto;padding:24px;}
+.ct::-webkit-scrollbar{width:5px;}
+.ct::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:3px;}
+
+/* VIEWS */
+.view{display:none;}
+.view.on{display:block;animation:fi 0.18s ease both;}
+@keyframes fi{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+
+/* TOOLBAR */
+.tb{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:0.5px solid rgba(0,0,0,0.06);}
+.tb-t{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
+.tb-s{font-size:12px;color:var(--t3);margin-top:2px;}
+
+/* CARDS */
+.card{background:rgba(0,0,0,0.02);border:0.5px solid rgba(0,0,0,0.07);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+.cl{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3);margin-bottom:8px;}
+
+/* INPUTS */
+.ib{background:var(--win);border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:10px 12px;}
+textarea,input[type=password],input[type=number]{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px;line-height:1.6;resize:none;}
+textarea::placeholder,input::placeholder{color:var(--t3);}
+select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;appearance:none;cursor:pointer;}
+
+/* PILLS */
+.pills{display:flex;gap:5px;flex-wrap:wrap;}
+.pill{background:rgba(0,0,0,0.04);border:0.5px solid rgba(0,0,0,0.08);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;transition:all 0.12s;}
+.pill:hover{background:rgba(0,0,0,0.07);}
+.pill.on{background:var(--bl);border-color:rgba(0,113,227,0.25);color:var(--blue);}
+
+/* BUTTONS */
+.btn{background:var(--blue);border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:all 0.12s;}
+.btn:hover{background:#0077ed;box-shadow:0 2px 8px rgba(0,113,227,0.28);}
+.btn:active{transform:scale(0.98);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-f{width:100%;padding:10px;border-radius:9px;margin-top:8px;font-size:13px;}
+.btn-sm{background:var(--bl);border:none;border-radius:6px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:500;color:var(--blue);cursor:pointer;transition:all 0.12s;}
+.btn-sm:hover{background:var(--bm);}
+.btn-out{background:transparent;border:0.5px solid rgba(0,0,0,0.14);border-radius:6px;padding:5px 12px;font-family:inherit;font-size:12px;color:var(--t2);cursor:pointer;transition:all 0.12s;}
+.btn-out:hover{border-color:rgba(0,0,0,0.28);color:var(--text);}
+
+/* RESULTS */
+.result{background:var(--win);border:0.5px solid rgba(0,0,0,0.09);border-radius:10px;border-left:3px solid var(--blue);padding:14px 16px;margin-bottom:8px;animation:fi 0.16s ease both;}
+.rl{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.rl::before{content:'';width:3px;height:3px;border-radius:50%;background:var(--blue);}
+.rb{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;margin-bottom:10px;}
+
+/* SAVE BOX */
+.save-box{background:var(--bl);border:0.5px solid rgba(0,113,227,0.18);border-radius:10px;padding:14px 16px;margin-top:12px;}
+.save-row{display:flex;gap:8px;align-items:flex-start;}
+.save-ta{flex:1;background:rgba(255,255,255,0.8);border:0.5px solid rgba(0,113,227,0.18);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:12px;color:var(--text);outline:none;resize:none;min-height:58px;}
+.save-ta::placeholder{color:var(--t3);}
+
+/* INSIGHTS */
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.kpi{background:rgba(0,0,0,0.02);border:0.5px solid rgba(0,0,0,0.07);border-radius:10px;padding:14px;text-align:center;}
+.kpi-n{font-size:24px;font-weight:700;color:var(--blue);letter-spacing:-0.5px;line-height:1;}
+.kpi-l{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3);margin-top:4px;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.panel{background:rgba(0,0,0,0.02);border:0.5px solid rgba(0,0,0,0.07);border-radius:10px;padding:14px 16px;}
+.pt{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--t3);margin-bottom:10px;}
+.pr{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(0,0,0,0.05);}
+.pr:last-child{border:none;}
+.pn{font-size:12px;color:var(--t2);}
+.pv{font-size:12px;font-weight:700;color:var(--blue);}
+.mbar{height:3px;background:rgba(0,0,0,0.06);border-radius:2px;overflow:hidden;margin-top:4px;}
+.mbf{height:100%;background:var(--blue);border-radius:2px;transition:width 0.5s ease;}
+.trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
+.tu{background:var(--gl);color:var(--green);}
+.tf{background:rgba(0,0,0,0.05);color:var(--t3);}
+.td{background:var(--rl);color:var(--red);}
+.top-p{background:rgba(0,0,0,0.02);border-radius:8px;padding:11px 13px;margin-bottom:7px;}
+.top-r{font-size:10px;color:var(--t3);margin-bottom:3px;}
+.top-h{font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;line-height:1.45;}
+.tags{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--win);color:var(--t2);border:0.5px solid rgba(0,0,0,0.07);}
+.ctx{background:rgba(0,0,0,0.02);border:0.5px solid rgba(0,0,0,0.07);border-radius:10px;border-top:2px solid var(--blue);padding:14px 16px;margin-top:10px;}
+.ctx-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ctx-t{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--blue);}
+.ctx-tx{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);line-height:1.9;white-space:pre-wrap;}
+
+/* HOOK */
+.hbar{height:3px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;margin:8px 0 3px;}
+.hfill{height:100%;border-radius:2px;background:var(--blue);transition:width 0.4s;}
+.hrow{display:flex;justify-content:space-between;}
+.hl{font-size:10px;color:var(--t3);}
+
+/* METRICS */
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mbox{background:rgba(0,0,0,0.03);border-radius:8px;padding:11px 13px;}
+.mlbl{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;}
+.mf{font-size:20px;font-weight:600;color:var(--text);width:100%;background:transparent;border:none;outline:none;font-family:inherit;}
+.sc{background:rgba(0,113,227,0.04);border:0.5px solid rgba(0,113,227,0.15);border-radius:10px;padding:16px;text-align:center;margin-bottom:10px;}
+.scb{font-size:48px;font-weight:700;color:var(--blue);letter-spacing:-2px;line-height:1;}
+.scl{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3);margin-top:3px;}
+.scs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px;}
+.ss{background:rgba(255,255,255,0.7);border-radius:7px;padding:8px;text-align:center;}
+.ssn{font-size:16px;font-weight:700;color:var(--text);}
+.ssl{font-size:9px;text-transform:uppercase;letter-spacing:0.05em;color:var(--t3);margin-top:1px;}
+
+/* VOICE BANK */
+.vbi{border-top:0.5px solid rgba(0,0,0,0.05);padding:10px 0;display:flex;gap:8px;}
+.vbt{font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--bl);color:var(--blue);display:inline-block;margin-bottom:3px;}
+.vbtx{font-size:12px;color:var(--t2);line-height:1.5;flex:1;}
+.vbm{font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;}
+.vbd{background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:13px;transition:color 0.12s;}
+.vbd:hover{color:var(--red);}
+
+/* SETTINGS */
+.sf{width:100%;background:rgba(0,0,0,0.03);border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--t2);outline:none;transition:border-color 0.15s;}
+.sf:focus{border-color:var(--blue);}
+.sr{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.info{background:var(--bl);border:0.5px solid rgba(0,113,227,0.15);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.75;margin-bottom:10px;}
+
+/* STATUS */
+.status{font-family:'DM Mono',monospace;font-size:11px;margin-top:6px;min-height:14px;}
+.ok{color:var(--green);}.err{color:var(--red);}
+.loading{display:flex;align-items:center;gap:8px;padding:14px 0;color:var(--t2);font-size:13px;}
+.spin{width:14px;height:14px;border:2px solid rgba(0,0,0,0.08);border-top-color:var(--blue);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ebox{background:var(--rl);border:0.5px solid rgba(255,59,48,0.18);border-radius:8px;padding:10px 13px;color:var(--red);font-size:12px;margin-top:8px;}
+.dv{height:0.5px;background:rgba(0,0,0,0.06);margin:12px 0;}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;text-align:center;gap:10px;}
+.empty-i{font-size:36px;}
+.empty-t{font-size:16px;font-weight:600;}
+.empty-s{font-size:13px;color:var(--t2);line-height:1.6;max-width:300px;}
+
+/* DOCK */
+.dock{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.28);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:0.5px solid rgba(255,255,255,0.5);border-radius:20px;padding:8px 14px;display:flex;gap:10px;align-items:flex-end;box-shadow:0 8px 32px rgba(0,0,0,0.14);z-index:99;}
+.di{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;position:relative;transition:transform 0.15s cubic-bezier(0.2,0,0,1);}
+.di:hover{transform:translateY(-8px) scale(1.12);}
+.di.on .dic{box-shadow:0 0 0 2.5px var(--blue);}
+.dic{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 2px 8px rgba(0,0,0,0.14);}
+.ddo{width:4px;height:4px;border-radius:50%;background:rgba(0,0,0,0.45);}
+.dlb{position:absolute;bottom:calc(100% + 8px);background:rgba(0,0,0,0.78);color:#fff;font-size:11px;font-weight:500;padding:4px 10px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.14s;}
+.di:hover .dlb{opacity:1;}
+.dsep{width:0.5px;height:38px;background:rgba(0,0,0,0.13);margin:0 2px;align-self:center;}
+
+@media(max-width:680px){.sb{display:none;}.dic{width:44px;height:44px;font-size:22px;border-radius:12px;}}
+</style>
+</head>
+<body>
+
+<div class="mb">
+  <div class="mb-l">
+    <span style="font-size:15px;">&#xF8FF;</span>
+    <span class="mb-app">LinkedIn OS</span>
+    <span class="mb-item">File</span>
+    <span class="mb-item">Edit</span>
+    <span class="mb-item">View</span>
+    <span class="mb-item">Window</span>
+  </div>
+  <div class="mb-r">
+    <span class="mb-mono" id="mbt">—</span>
+    <span>🔋</span><span>📶</span>
+  </div>
+</div>
+
+<div class="desktop">
+<div class="win">
+  <div class="tbar">
+    <div class="traffic">
+      <div class="dot dr"></div>
+      <div class="dot dy"></div>
+      <div class="dot dg"></div>
+    </div>
+    <div class="wt" id="wt">Insights</div>
+  </div>
+  <div class="wb">
+    <div class="sb">
+      <div class="sb-s">
+        <div class="sb-h">Analytics</div>
+        <div class="sb-i on" id="si-insights" onclick="go('insights',this)"><span class="sb-ic">📊</span>Insights</div>
+      </div>
+      <div class="sb-s">
+        <div class="sb-h">Create</div>
+        <div class="sb-i" id="si-write" onclick="go('write',this)"><span class="sb-ic">✏️</span>Write Post</div>
+        <div class="sb-i" id="si-replies" onclick="go('replies',this)"><span class="sb-ic">💬</span>My Replies</div>
+        <div class="sb-i" id="si-comments" onclick="go('comments',this)"><span class="sb-ic">🗣️</span>Comment Others</div>
+      </div>
+      <div class="sb-s">
+        <div class="sb-h">Track</div>
+        <div class="sb-i" id="si-log" onclick="go('log',this)"><span class="sb-ic">📝</span>Log Post</div>
+        <div class="sb-i" id="si-voice" onclick="go('voice',this)"><span class="sb-ic">🎙️</span>Voice Bank</div>
+      </div>
+      <div class="sb-bot">
+        <div class="sb-i" id="si-settings" onclick="go('settings',this)"><span class="sb-ic">⚙️</span>Settings</div>
+      </div>
+    </div>
+
+    <div class="ct">
+
+      <!-- INSIGHTS -->
+      <div class="view on" id="view-insights">
+        <div class="tb">
+          <div><div class="tb-t">Insights</div><div class="tb-s">Your LinkedIn performance at a glance</div></div>
+          <button class="btn" onclick="loadInsights()">Sync from Notion</button>
+        </div>
+        <div id="ins-content">
+          <div class="empty"><div class="empty-i">📊</div><div class="empty-t">Ready to sync</div><div class="empty-s">Click "Sync from Notion" to pull your post data and see what's working.</div></div>
+        </div>
+      </div>
+
+      <!-- WRITE POST -->
+      <div class="view" id="view-write">
+        <div class="tb"><div><div class="tb-t">Write Post</div><div class="tb-s">Reads your top Notion posts first, then writes in your voice</div></div></div>
+        <div class="card"><div class="cl">Topic or inspiration</div><div class="ib"><textarea id="w-topic" rows="4" placeholder="Paste a link, describe a topic, share a data point, say what's on your mind…"></textarea></div></div>
+        <div class="card">
+          <div class="cl">Angle</div>
+          <div class="pills">
+            <button class="pill on" data-v="contrarian" onclick="sp(this,'angle')">Contrarian take</button>
+            <button class="pill" data-v="data" onclick="sp(this,'angle')">Data breakdown</button>
+            <button class="pill" data-v="story" onclick="sp(this,'angle')">Personal story</button>
+            <button class="pill" data-v="framework" onclick="sp(this,'angle')">Framework</button>
+            <button class="pill" data-v="hot-take" onclick="sp(this,'angle')">Hot take</button>
+          </div>
+        </div>
+        <button class="btn btn-f" onclick="writePost()" id="write-btn">Write in my voice →</button>
+        <div id="write-res"></div>
+      </div>
+
+      <!-- REPLIES -->
+      <div class="view" id="view-replies">
+        <div class="tb"><div><div class="tb-t">My Replies</div><div class="tb-s">5 options in your voice</div></div></div>
+        <div class="card"><div class="cl">Your post</div><div class="ib"><textarea id="rp-post" rows="4" placeholder="Paste your LinkedIn post…"></textarea></div></div>
+        <div class="card"><div class="cl">Comment received</div><div class="ib"><textarea id="rp-comment" rows="3" placeholder="Paste the comment…"></textarea></div></div>
+        <div class="card">
+          <div class="cl">Comment type</div>
+          <div class="pills">
+            <button class="pill on" data-v="neutral" onclick="sp(this,'tone')">Neutral</button>
+            <button class="pill" data-v="agree" onclick="sp(this,'tone')">They agree</button>
+            <button class="pill" data-v="disagree" onclick="sp(this,'tone')">Pushback</button>
+            <button class="pill" data-v="question" onclick="sp(this,'tone')">Question</button>
+          </div>
+        </div>
+        <button class="btn btn-f" onclick="genReplies()" id="rp-btn">Generate 5 replies</button>
+        <div id="rp-res"></div>
+        <div class="save-box" id="save-rp" style="display:none;">
+          <div class="cl" style="color:var(--blue);margin-bottom:8px;">Which reply did you actually send?</div>
+          <div class="save-row"><textarea class="save-ta" id="srp-txt" rows="3" placeholder="Paste the exact reply you sent…"></textarea><button class="btn-sm" onclick="saveBank('reply')" style="flex-shrink:0;align-self:flex-end;">Save to voice bank</button></div>
+          <div class="status" id="srp-s"></div>
+        </div>
+      </div>
+
+      <!-- COMMENTS -->
+      <div class="view" id="view-comments">
+        <div class="tb"><div><div class="tb-t">Comment Others</div><div class="tb-s">5 completely different approaches in your voice</div></div></div>
+        <div class="card"><div class="cl">Their post</div><div class="ib"><textarea id="cm-post" rows="5" placeholder="Paste the post you want to comment on…"></textarea></div></div>
+        <div class="card"><div class="cl">Your angle (optional)</div><div class="ib"><textarea id="cm-angle" rows="2" placeholder="e.g. disagree with the data, share your experience…"></textarea></div></div>
+        <div class="card">
+          <div class="cl">Goal</div>
+          <div class="pills">
+            <button class="pill on" data-v="visible" onclick="sp(this,'goal')">Get noticed</button>
+            <button class="pill" data-v="insight" onclick="sp(this,'goal')">Add insight</button>
+            <button class="pill" data-v="disagree" onclick="sp(this,'goal')">Pushback</button>
+            <button class="pill" data-v="question" onclick="sp(this,'goal')">Sharp question</button>
+            <button class="pill" data-v="relate" onclick="sp(this,'goal')">Share experience</button>
+          </div>
+        </div>
+        <button class="btn btn-f" onclick="genComments()" id="cm-btn">Generate 5 comments</button>
+        <div id="cm-res"></div>
+        <div class="save-box" id="save-cm" style="display:none;">
+          <div class="cl" style="color:var(--blue);margin-bottom:8px;">Which comment did you actually post?</div>
+          <div class="save-row"><textarea class="save-ta" id="scm-txt" rows="3" placeholder="Paste the exact comment you posted…"></textarea><button class="btn-sm" onclick="saveBank('comment')" style="flex-shrink:0;align-self:flex-end;">Save to voice bank</button></div>
+          <div class="status" id="scm-s"></div>
+        </div>
+      </div>
+
+      <!-- LOG POST -->
+      <div class="view" id="view-log">
+        <div class="tb"><div><div class="tb-t">Log Post</div><div class="tb-s">Saves directly to your Notion database</div></div></div>
+        <div class="card">
+          <div class="cl">Post hook — first line</div>
+          <div class="ib"><textarea id="lg-hook" rows="2" placeholder="Paste the first line of your post…" oninput="calcHook()"></textarea></div>
+          <div class="hbar"><div class="hfill" id="hf"></div></div>
+          <div class="hrow"><span class="hl">Hook strength</span><span class="hl" id="hl">—</span></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="cl" style="margin:0;">Full post text</div>
+            <button class="btn-sm" onclick="autoClassify()" id="ac-btn">Auto-detect →</button>
+          </div>
+          <div class="ib"><textarea id="lg-full" rows="5" placeholder="Paste your full post — Claude auto-detects topic and type…"></textarea></div>
+          <div class="status" id="ac-s"></div>
+        </div>
+        <div class="card">
+          <div class="cl" style="margin-bottom:8px;">Topic</div>
+          <div class="pills" id="topic-pills">
+            <button class="pill tp" data-topic="Crypto marketing" onclick="toggleTopic(this)">Crypto marketing</button>
+            <button class="pill tp" data-topic="Personal story" onclick="toggleTopic(this)">Personal story</button>
+            <button class="pill tp" data-topic="Productivity" onclick="toggleTopic(this)">Productivity</button>
+            <button class="pill tp" data-topic="Tools" onclick="toggleTopic(this)">Tools</button>
+            <button class="pill tp" data-topic="Motivation" onclick="toggleTopic(this)">Motivation</button>
+            <button class="pill tp" data-topic="Opinion" onclick="toggleTopic(this)">Opinion</button>
+            <button class="pill tp" data-topic="The Market" onclick="toggleTopic(this)">The Market</button>
+            <button class="pill tp" data-topic="News & Politics" onclick="toggleTopic(this)">News & Politics</button>
+          </div>
+          <div class="dv"></div>
+          <div class="cl" style="margin-bottom:6px;">Post type</div>
+          <select id="lg-type">
+            <option>Authority Builder</option><option>Data Take</option><option>Proof Post</option>
+            <option>Framework</option><option>AI x Marketing</option><option>Story</option>
+            <option>Tactical Win</option><option>Meme / Chill</option>
+          </select>
+          <div style="margin-top:12px;">
+            <label style="font-size:13px;color:var(--t2);display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="lg-vis" style="accent-color:var(--blue);width:14px;height:14px;">Had visual or photo
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cl" style="margin-bottom:10px;">Metrics — fill in whenever you check</div>
+          <div class="mg">
+            <div class="mbox"><div class="mlbl">Impressions</div><input type="number" class="mf" id="lg-imp" placeholder="0" oninput="calcScore()"></div>
+            <div class="mbox"><div class="mlbl">Likes</div><input type="number" class="mf" id="lg-likes" placeholder="0" oninput="calcScore()"></div>
+            <div class="mbox"><div class="mlbl">Comments</div><input type="number" class="mf" id="lg-comments" placeholder="0" oninput="calcScore()"></div>
+            <div class="mbox"><div class="mlbl">Reposts</div><input type="number" class="mf" id="lg-reposts" placeholder="0" oninput="calcScore()"></div>
+            <div class="mbox" style="grid-column:1/-1;"><div class="mlbl">Saves</div><input type="number" class="mf" id="lg-saves" placeholder="0" oninput="calcScore()"></div>
+          </div>
+        </div>
+        <div class="sc" id="score-card" style="display:none;">
+          <div class="scb" id="sc-big">0</div>
+          <div class="scl">Engagement Score</div>
+          <div class="scs">
+            <div class="ss"><div class="ssn" id="sc-rate">—</div><div class="ssl">Rate</div></div>
+            <div class="ss"><div class="ssn" id="sc-saves">0</div><div class="ssl">Saves</div></div>
+            <div class="ss"><div class="ssn" id="sc-comments">0</div><div class="ssl">Comments</div></div>
+          </div>
+        </div>
+        <button class="btn btn-f" onclick="logPost()" id="lg-btn">Save to Notion →</button>
+        <div class="status" id="lg-s"></div>
+      </div>
+
+      <!-- VOICE BANK -->
+      <div class="view" id="view-voice">
+        <div class="tb">
+          <div><div class="tb-t">Voice Bank</div><div class="tb-s">Every saved reply trains the generator to sound more like you</div></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-out" onclick="exportBank()">Export</button>
+            <button class="btn-out" onclick="clearBank()" style="color:var(--red);border-color:rgba(255,59,48,0.2);">Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--t2);">Save replies and comments you actually use — the more examples, the better it sounds like you.</span>
+            <span style="font-size:11px;font-weight:600;color:var(--blue);" id="vb-count">0 examples</span>
+          </div>
+          <div id="vb-list"><div style="font-size:12px;color:var(--t3);padding:4px 0;">No examples yet.</div></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div class="tb"><div><div class="tb-t">Settings</div><div class="tb-s">Connect your API keys</div></div></div>
+        <div class="card">
+          <div class="cl">Anthropic API Key</div>
+          <div class="sr"><input type="password" class="sf" id="api-key" placeholder="sk-ant-…" style="flex:1;"><button class="btn" onclick="saveKey('ant')">Save</button></div>
+          <div class="status ok" id="ant-s"></div>
+          <p style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.7;">Get at <strong>console.anthropic.com</strong> → API Keys → Create Key. ~$0.01 per reply generation.</p>
+        </div>
+        <div class="card">
+          <div class="cl">Notion Integration Token</div>
+          <div class="sr"><input type="password" class="sf" id="notion-token" placeholder="secret_…" style="flex:1;"><button class="btn" onclick="saveKey('notion')">Save</button></div>
+          <div class="status ok" id="notion-s"></div>
+          <p style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.7;">Get at <strong>notion.so/my-integrations</strong> → New integration → copy token. Make sure to connect it to your database.</p>
+        </div>
+        <div class="card">
+          <div class="cl" style="margin-bottom:6px;">Notion Database ID</div>
+          <input type="text" class="sf" id="notion-db" placeholder="f968633d41fa4c80a4f24e029f3af331" value="f968633d41fa4c80a4f24e029f3af331">
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn-sm" onclick="saveKey('db')">Save</button>
+            <button class="btn-out" onclick="testNotion()">Test connection</button>
+          </div>
+          <div class="status" id="db-s"></div>
+        </div>
+        <div class="info">
+          <strong>How it works:</strong> This app is hosted on Netlify. Replies and comments call the Anthropic API directly from your browser. Insights, Write Post, and Log Post go through Netlify server functions that talk to Notion — this fixes the CORS restriction. Your keys are saved locally in your browser.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DOCK -->
+<div class="dock">
+  <div class="di on" id="di-insights" onclick="go('insights',null,'di-insights')"><div class="dlb">Insights</div><div class="dic" style="background:linear-gradient(135deg,#667eea,#764ba2);">📊</div><div class="ddo"></div></div>
+  <div class="di" id="di-write" onclick="go('write',null,'di-write')"><div class="dlb">Write Post</div><div class="dic" style="background:linear-gradient(135deg,#f093fb,#f5576c);">✏️</div><div class="ddo" style="opacity:0;"></div></div>
+  <div class="dsep"></div>
+  <div class="di" id="di-replies" onclick="go('replies',null,'di-replies')"><div class="dlb">Replies</div><div class="dic" style="background:linear-gradient(135deg,#4facfe,#00f2fe);">💬</div><div class="ddo" style="opacity:0;"></div></div>
+  <div class="di" id="di-comments" onclick="go('comments',null,'di-comments')"><div class="dlb">Comments</div><div class="dic" style="background:linear-gradient(135deg,#43e97b,#38f9d7);">🗣️</div><div class="ddo" style="opacity:0;"></div></div>
+  <div class="dsep"></div>
+  <div class="di" id="di-log" onclick="go('log',null,'di-log')"><div class="dlb">Log Post</div><div class="dic" style="background:linear-gradient(135deg,#fa709a,#fee140);">📝</div><div class="ddo" style="opacity:0;"></div></div>
+  <div class="di" id="di-voice" onclick="go('voice',null,'di-voice')"><div class="dlb">Voice Bank</div><div class="dic" style="background:linear-gradient(135deg,#a8edea,#fed6e3);">🎙️</div><div class="ddo" style="opacity:0;"></div></div>
+  <div class="dsep"></div>
+  <div class="di" id="di-settings" onclick="go('settings',null,'di-settings')"><div class="dlb">Settings</div><div class="dic" style="background:linear-gradient(135deg,#d3cce3,#e9e4f0);">⚙️</div><div class="ddo" style="opacity:0;"></div></div>
+</div>
+
+<script>
+// CLOCK
+function tick(){document.getElementById('mbt').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});}
+tick();setInterval(tick,1000);
+
+// STATE
+let tone='neutral',goal='visible',angle='contrarian';
+const titles={insights:'Insights',write:'Write Post',replies:'My Replies',comments:'Comment Others',log:'Log Post',voice:'Voice Bank',settings:'Settings'};
+const gk=k=>sessionStorage.getItem('nat_'+k)||localStorage.getItem('nat_'+k)||'';
+const getBank=()=>{try{return JSON.parse(localStorage.getItem('nat_vb')||'[]');}catch{return[];}};
+const setBank=b=>localStorage.setItem('nat_vb',JSON.stringify(b));
+
+function saveKey(type){
+  const idMap={ant:'api-key',notion:'notion-token',db:'notion-db'};
+  const sMap={ant:'ant-s',notion:'notion-s',db:'db-s'};
+  const k=document.getElementById(idMap[type]).value.trim();
+  if(k){sessionStorage.setItem('nat_'+type,k);localStorage.setItem('nat_'+type,k);}
+  st(sMap[type],'Saved ✓','ok');
+}
+
+function go(tab,sbEl,dockId){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('view-'+tab).classList.add('on');
+  document.getElementById('wt').textContent=titles[tab]||tab;
+  document.querySelectorAll('.sb-i').forEach(i=>i.classList.remove('on'));
+  const si=sbEl||document.getElementById('si-'+tab);
+  if(si)si.classList.add('on');
+  document.querySelectorAll('.di').forEach(d=>{d.classList.remove('on');const dot=d.querySelector('.ddo');if(dot)dot.style.opacity='0';});
+  const di=dockId?document.getElementById(dockId):document.getElementById('di-'+tab);
+  if(di){di.classList.add('on');const dot=di.querySelector('.ddo');if(dot)dot.style.opacity='1';}
+  if(tab==='voice')renderBank();
+  if(tab==='settings')loadSettings();
+}
+
+function sp(btn,group){
+  btn.closest('.pills').querySelectorAll('.pill').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if(group==='tone')tone=btn.dataset.v;
+  if(group==='goal')goal=btn.dataset.v;
+  if(group==='angle')angle=btn.dataset.v;
+}
+function toggleTopic(btn){btn.classList.toggle('on');}
+const getTopics=()=>[...document.querySelectorAll('.tp.on')].map(b=>b.dataset.topic);
+function setTopics(arr){document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',arr.includes(b.dataset.topic)));}
+
+function st(id,msg,type,dur=3000){
+  const el=document.getElementById(id);if(!el)return;
+  el.textContent=msg;el.className='status '+type;
+  if(dur)setTimeout(()=>{el.textContent='';el.className='status';},dur);
+}
+
+function loadSettings(){
+  const fields={ant:'api-key',notion:'notion-token',db:'notion-db'};
+  Object.entries(fields).forEach(([k,id])=>{const v=gk(k);const el=document.getElementById(id);if(v&&el)el.value=v;});
+}
+
+// NOTION VIA NETLIFY PROXY
+function notionHeaders(){
+  return {'Content-Type':'application/json',};
+}
+function fmtDb(raw){
+  const c=(raw||'').replace(/-/g,'');
+  if(c.length!==32)return raw;
+  return`${c.slice(0,8)}-${c.slice(8,12)}-${c.slice(12,16)}-${c.slice(16,20)}-${c.slice(20)}`;
+}
+
+async function notionRead(filter){
+  const notionToken=gk('notion');
+  const dbId=fmtDb(gk('db'));
+  if(!notionToken)throw new Error('Add your Notion token in Settings first.');
+  if(!dbId)throw new Error('Add your Notion Database ID in Settings first.');
+  const payload={notionToken,dbId};
+  if(filter?.filter)payload.filter=filter.filter;
+  if(filter?.sorts)payload.sorts=filter.sorts;
+  const res=await fetch('/api/notion-read',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.message||e.error||'Notion read error');}
+  return res.json();
+}
+
+async function notionWrite(payload){
+  const notionToken=gk('notion');
+  if(!notionToken)throw new Error('Add your Notion token in Settings first.');
+  const res=await fetch('/api/notion-write',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({notionToken,payload})
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.message||e.error||'Notion write error');}
+  return res.json();
+}
+
+async function testNotion(){
+  st('db-s','Testing…','ok',0);
+  try{
+    const notionToken=gk('notion');
+    const dbId=fmtDb(gk('db'));
+    if(!notionToken||!dbId){st('db-s','Add Notion token and DB ID first.','err');return;}
+    const res=await fetch('/api/notion-test',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notionToken,dbId})
+    });
+    if(res.ok)st('db-s','Connected ✓','ok');
+    else{const e=await res.json();throw new Error(e.message||e.error);}
+  }catch(e){st('db-s','Failed: '+e.message,'err',6000);}
+}
+
+// CLAUDE API (direct, no MCP)
+async function callClaude(system,user,maxTokens=1500){
+  const key=gk('ant');
+  if(!key)throw new Error('Add your Anthropic API key in Settings first.');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,system,messages:[{role:'user',content:user}]})
+  });
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API error');}
+  const d=await r.json();
+  return d.content?.filter(b=>b.type==='text').map(b=>b.text).join('\n')||'';
+}
+
+// VOICE CONTEXT
+const voiceCtx=()=>{
+  const b=getBank();if(!b.length)return'';
+  return'\n\nReal examples of how Nat actually writes — match this voice precisely:\n'+b.slice(-15).map((e,i)=>`${i+1}. "${e.text}"`).join('\n');
+};
+
+const BASE=`You are writing LinkedIn content for Natalia Gavrilovic. Crypto marketing and social media strategist, 4+ years in Web3, ex-CertiK Skynet (blockchain security analytics). Based in Ljubljana, Europe.
+
+ABSOLUTE RULES:
+- No hyphens anywhere
+- Max 1-2 lines per sentence, line break between every sentence
+- No hashtags, no emojis unless content truly calls for it
+- First line = single shocking hook, no preamble
+- Shorter is always better
+- Direct, confident, data-driven, human tone
+
+FORBIDDEN:
+- "X didn't just Y, it Z" / "It's not X... it's Y" / "This isn't just..."
+- "Not because of X. Because of Y." — combine into one sentence
+- "Here's what nobody is talking about" or similar
+- Three-part contrast / listicle openers / splitting one idea for drama`;
+
+// PARSE NOTION PROPS
+function parsePost(p){
+  const props=p.properties;
+  const num=k=>props[k]?.number??0;
+  const sel=k=>props[k]?.select?.name||null;
+  const chk=k=>props[k]?.checkbox??false;
+  const ttl=k=>props[k]?.title?.[0]?.plain_text||'';
+  const txt=k=>props[k]?.rich_text?.[0]?.plain_text||'';
+  const dt=k=>props[k]?.date?.start||null;
+  const topics=(props['Topic']?.multi_select||[]).map(t=>t.name);
+  const imp=num('Impressions (24h)'),likes=num('Likes (24h)'),comments=num('Comments (24h)'),reposts=num('Reposts (24h)'),saves=num('Saves (24h)');
+  const engScore=(likes*1)+(comments*3)+(reposts*5)+(saves*4);
+  return{hook:txt('Hook')||ttl('Post'),topics,postType:sel('Post Type')||'',hasVisual:chk('Has Visual'),imp,likes,comments,reposts,saves,engScore,date:dt('Posted on')||p.created_time?.slice(0,10)||''};
+}
+
+// INSIGHTS
+async function loadInsights(){
+  const el=document.getElementById('ins-content');
+  if(!gk('ant')){el.innerHTML='<div class="ebox">Add your Anthropic API key in Settings first.</div>';return;}
+  if(!gk('notion')){el.innerHTML='<div class="ebox">Add your Notion token in Settings first.</div>';return;}
+  el.innerHTML=`<div class="loading"><div class="spin"></div><span>Reading your Notion data…</span></div>`;
+  try{
+    const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}}});
+    const posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
+    if(!posts.length){el.innerHTML='<div class="empty"><div class="empty-i">📝</div><div class="empty-t">No data yet</div><div class="empty-s">Log posts with metrics marked as Posted in Notion. Come back once you have at least 5.</div></div>';return;}
+
+    const sorted=[...posts].sort((a,b)=>a.date.localeCompare(b.date));
+    const total=posts.length;
+    const overallAvg=avg(posts.map(p=>p.engScore));
+
+    // topics
+    const topicMap={};
+    posts.forEach(p=>(p.topics||[]).forEach(t=>{if(!topicMap[t])topicMap[t]=[];topicMap[t].push(p.engScore);}));
+    const topics=Object.entries(topicMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg);
+
+    // types
+    const typeMap={};
+    posts.forEach(p=>{const k=p.postType||'Unknown';if(!typeMap[k])typeMap[k]=[];typeMap[k].push(p.engScore);});
+    const types=Object.entries(typeMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg).slice(0,5);
+
+    // visual
+    const wv=posts.filter(p=>p.hasVisual).map(p=>p.engScore);
+    const nv=posts.filter(p=>!p.hasVisual).map(p=>p.engScore);
+    const avgVis=avg(wv),avgNoVis=avg(nv);
+
+    // trend
+    const recent=sorted.slice(-5).map(p=>p.engScore);
+    const prev=sorted.slice(-10,-5).map(p=>p.engScore);
+    const avgR=avg(recent),avgP=avg(prev);
+    const trendPct=avgP>0?Math.round((avgR-avgP)/avgP*100):0;
+    const tc=trendPct>5?'tu':trendPct<-5?'td':'tf';
+    const ti=trendPct>5?'↑':trendPct<-5?'↓':'→';
+
+    const top3=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3);
+    const maxT=Math.max(...topics.map(t=>t.avg),1);
+    const ctx=buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg);
+
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t3);">${total} posts synced</span>
+        <button class="btn-sm" onclick="loadInsights()">Sync now</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-n">${total}</div><div class="kpi-l">Posts</div></div>
+        <div class="kpi"><div class="kpi-n">${overallAvg}</div><div class="kpi-l">Avg score</div></div>
+        <div class="kpi"><div class="kpi-n"><span class="trend ${tc}">${ti} ${Math.abs(trendPct)}%</span></div><div class="kpi-l">Trend</div></div>
+      </div>
+      <div class="two">
+        <div class="panel"><div class="pt">Topic performance</div>${topics.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div><div class="mbar"><div class="mbf" style="width:${Math.round(t.avg/maxT*100)}%"></div></div>`).join('')}</div>
+        <div class="panel"><div class="pt">Post type</div>${types.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div>`).join('')}<div class="dv"></div><div class="pt">Visual impact</div><div class="pr"><span class="pn">With visual</span><span class="pv">${avgVis}</span></div><div class="pr"><span class="pn">Text only</span><span class="pv">${avgNoVis}</span></div></div>
+      </div>
+      <div style="margin-bottom:10px;"><div class="cl" style="margin-bottom:8px;">Top performing posts</div>${top3.map((p,i)=>`<div class="top-p"><div class="top-r">#${i+1} · Score ${p.engScore} · ${p.date}</div><div class="top-h">${esc(p.hook)}</div><div class="tags">${(p.topics||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="tag">${esc(p.postType||'')}</span><span class="tag">${p.saves} saves</span><span class="tag">${p.comments} comments</span></div></div>`).join('')}</div>
+      <div class="ctx"><div class="ctx-h"><span class="ctx-t">Copy into Claude before drafting</span><button class="btn-sm" onclick="copyCtx()" id="ctx-btn">Copy</button></div><div class="ctx-tx" id="ctx-tx">${esc(ctx)}</div></div>`;
+  }catch(e){el.innerHTML=`<div class="ebox">${esc(e.message)}<br><button class="btn-out" onclick="loadInsights()" style="margin-top:8px;">Retry</button></div>`;}
+}
+
+function avg(arr){return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;}
+
+function buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg){
+  const trend=trendPct>5?`IMPROVING (+${trendPct}%)`:trendPct<-5?`DECLINING (${trendPct}%)`:'STABLE';
+  const tl=topics.map((t,i)=>`  ${i+1}. ${t.name}: avg ${t.avg} (${t.count} posts)`).join('\n');
+  const ttl=types.slice(0,3).map((t,i)=>`  ${i+1}. ${t.name}: avg ${t.avg}`).join('\n');
+  const top=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3).map((p,i)=>`  ${i+1}. "${p.hook}" — score ${p.engScore}, ${p.saves} saves`).join('\n');
+  const best=topics[0],bt=types[0];
+  const vis=avgVis>avgNoVis?'Include a visual — they outperform text-only for you.':'Text-only is working well for you.';
+  return`PERFORMANCE CONTEXT — ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}\n\nOVERVIEW\nTotal: ${posts.length} posts · Avg score: ${overallAvg} · Trend: ${trend}\n\nTOPIC PERFORMANCE\n${tl}\n\nBEST POST TYPES\n${ttl}\n\nVISUAL IMPACT\n${vis}\n\nTOP 3 HOOKS — study these\n${top}\n\nACTION\n${best?`Double down on ${best.name} posts.`:''} ${bt?`Format: ${bt.name}.`:''}`;
+}
+
+function copyCtx(){
+  navigator.clipboard.writeText(document.getElementById('ctx-tx')?.innerText||'').then(()=>{
+    const btn=document.getElementById('ctx-btn');btn.textContent='Copied ✓';setTimeout(()=>btn.textContent='Copy',2000);
+  });
+}
+
+// WRITE POST — reads Notion top posts first, then calls Claude
+async function writePost(){
+  const topic=document.getElementById('w-topic').value.trim();
+  const btn=document.getElementById('write-btn');const res=document.getElementById('write-res');
+  if(!gk('ant')){res.innerHTML='<div class="ebox">Add your API key in Settings first.</div>';return;}
+  if(!topic){res.innerHTML='<div class="ebox">Describe what you want to write about.</div>';return;}
+  btn.disabled=true;btn.textContent='Writing…';
+  res.innerHTML=`<div class="loading"><div class="spin"></div><span>Reading your top posts, then writing in your voice…</span></div>`;
+
+  let topPostsCtx='';
+  if(gk('notion')){
+    try{
+      const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}},sorts:[{property:'Engagement Score',direction:'descending'}]});
+      const top=data.results.slice(0,5).map(parsePost).filter(p=>p.hook);
+      if(top.length){
+        topPostsCtx='\n\nNat\'s top performing posts — study the hook style, tone and structure:\n'+top.map((p,i)=>`${i+1}. Hook: "${p.hook}" (score: ${p.engScore})`).join('\n');
+      }
+    }catch(e){/* proceed without notion context */}
+  }
+
+  const angles={contrarian:'Take the contrarian angle — challenge mainstream with data.',data:'Lead with the most shocking data point. Build around numbers.',story:'Frame as personal experience from working in crypto.',framework:'Structure as a clear framework people can learn from.','hot-take':'Bold opinionated hot take that sparks debate.'};
+  try{
+    const text=await callClaude(BASE+voiceCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post — formatted exactly as it should appear, line breaks between sentences, hook first, punchy ending. No commentary, just the post.',
+      `Topic: ${topic}\nAngle: ${angles[angle]||angles.contrarian}\n\nWrite the post.`,2000);
+    res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="rb" id="draft-txt">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft()">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
+  }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
+  finally{btn.disabled=false;btn.textContent='Write in my voice →';}
+}
+function copyDraft(){navigator.clipboard.writeText(document.getElementById('draft-txt')?.innerText||'').then(()=>{event.target.textContent='Copied ✓';setTimeout(()=>event.target.textContent='Copy post',2000);});}
+
+// REPLIES
+async function genReplies(){
+  const post=document.getElementById('rp-post').value.trim();
+  const comment=document.getElementById('rp-comment').value.trim();
+  const btn=document.getElementById('rp-btn');const res=document.getElementById('rp-res');
+  if(!gk('ant')){res.innerHTML='<div class="ebox">Add your API key in Settings.</div>';return;}
+  if(!post||!comment){res.innerHTML='<div class="ebox">Paste both your post and the comment.</div>';return;}
+  btn.disabled=true;btn.textContent='Writing…';
+  res.innerHTML=`<div class="loading"><div class="spin"></div><span>Generating in your voice…</span></div>`;
+  document.getElementById('save-rp').style.display='none';
+  const tm={neutral:'neutral engagement',agree:'agreement',disagree:'pushback',question:'a direct question'};
+  const s=['Short and punchy (1 sentence)','Conversational (2 sentences)','Adds a data point','Ends with a question','Playful but on-brand'];
+  const sys=BASE+voiceCtx()+`\n\nGenerate exactly 5 reply options. Max 3 sentences each. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, reply on next. Nothing else.`;
+  try{
+    const text=await callClaude(sys,`My post:\n${post}\n\nComment (${tm[tone]}):\n${comment}\n\nWrite 5 replies.`);
+    renderOpts(parseOpts(text,s),res,'rp');
+    document.getElementById('save-rp').style.display='block';
+  }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
+  finally{btn.disabled=false;btn.textContent='Generate 5 replies';}
+}
+
+// COMMENTS
+async function genComments(){
+  const post=document.getElementById('cm-post').value.trim();
+  const ang=document.getElementById('cm-angle').value.trim();
+  const btn=document.getElementById('cm-btn');const res=document.getElementById('cm-res');
+  if(!gk('ant')){res.innerHTML='<div class="ebox">Add your API key in Settings.</div>';return;}
+  if(!post){res.innerHTML='<div class="ebox">Paste the post you want to comment on.</div>';return;}
+  btn.disabled=true;btn.textContent='Writing…';
+  res.innerHTML=`<div class="loading"><div class="spin"></div><span>Crafting comments in your voice…</span></div>`;
+  document.getElementById('save-cm').style.display='none';
+  const gm={visible:'make Nat visible and memorable',insight:'add genuine insight',disagree:'respectfully push back with data',question:'ask a sharp specific question that shows you read it',relate:'share a brief relevant experience from Nat\'s background'};
+  const s=['Direct take (1 sentence)','Insight add (specific angle)','Experience tie-in','Contrarian / light pushback','Sharp question'];
+  const sys=BASE+voiceCtx()+`\n\nGoal: ${gm[goal]}${ang?`\nAngle: ${ang}`:''}\n\nGenerate exactly 5 completely different comment options. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, comment on next. Nothing else.`;
+  try{
+    const text=await callClaude(sys,`Post:\n${post}\n\nWrite 5 different comments.`);
+    renderOpts(parseOpts(text,s),res,'cm');
+    document.getElementById('save-cm').style.display='block';
+  }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
+  finally{btn.disabled=false;btn.textContent='Generate 5 comments';}
+}
+
+function parseOpts(text,styles){
+  return styles.map((s,i)=>{
+    const tag=`OPTION ${i+1}`;const start=text.indexOf(tag);const end=i<styles.length-1?text.indexOf(`OPTION ${i+2}`):text.length;
+    if(start===-1)return null;
+    return{label:s.split('(')[0].trim(),text:text.slice(start,end).replace(/OPTION \d[^\n]*/g,'').trim()};
+  }).filter(Boolean);
+}
+function renderOpts(opts,container,type){
+  if(!opts.length){container.innerHTML='<div class="ebox">Could not parse. Try again.</div>';return;}
+  container.innerHTML='<div style="margin-top:10px;">'+opts.map((o,i)=>`<div class="result" style="animation-delay:${i*0.05}s"><div class="rl">${esc(o.label)}</div><div class="rb" id="rb-${type}-${i}">${esc(o.text)}</div><button class="btn-sm" id="cb-${type}-${i}" onclick="copyOpt('${type}',${i})">Copy</button></div>`).join('')+'</div>';
+}
+function copyOpt(type,i){
+  navigator.clipboard.writeText(document.getElementById(`rb-${type}-${i}`)?.innerText||'').then(()=>{
+    const btn=document.getElementById(`cb-${type}-${i}`);btn.textContent='Copied ✓';setTimeout(()=>btn.textContent='Copy',2000);
+  });
+}
+
+// AUTO-CLASSIFY
+async function autoClassify(){
+  const text=document.getElementById('lg-full').value.trim()||document.getElementById('lg-hook').value.trim();
+  if(!gk('ant')){st('ac-s','Add your API key in Settings.','err');return;}
+  if(!text){st('ac-s','Paste your post text first.','err');return;}
+  const btn=document.getElementById('ac-btn');btn.textContent='Detecting…';btn.disabled=true;
+  st('ac-s','Reading…','ok',0);
+  try{
+    const raw=await callClaude(`Classify a LinkedIn post. Return ONLY valid JSON, no markdown:\n{"topic":["from: Crypto marketing, Personal story, Productivity, Tools, Motivation, Opinion, The Market, News & Politics"],"post_type":"one of: Authority Builder, Data Take, Proof Post, Framework, AI x Marketing, Story, Tactical Win, Meme / Chill"}`,`Classify:\n${text.slice(0,1500)}`);
+    const c=raw.replace(/```json|```/g,'').trim();
+    const p=JSON.parse(c.slice(c.indexOf('{'),c.lastIndexOf('}')+1));
+    if(p.topic?.length)setTopics(p.topic);
+    if(p.post_type){const s=document.getElementById('lg-type');for(let i=0;i<s.options.length;i++){if(s.options[i].value===p.post_type){s.selectedIndex=i;break;}}}
+    st('ac-s',`${(p.topic||[]).join(', ')} · ${p.post_type}. Adjust if needed.`,'ok',7000);
+  }catch(e){st('ac-s','Could not detect. Select manually.','err');}
+  finally{btn.textContent='Auto-detect →';btn.disabled=false;}
+}
+
+// HOOK + SCORE
+function calcHook(){
+  const t=document.getElementById('lg-hook').value.trim();
+  const fill=document.getElementById('hf');const lbl=document.getElementById('hl');
+  if(!t||!fill||!lbl)return;
+  let s=0;
+  if(/\d/.test(t))s+=25;const w=t.split(/\s+/).length;
+  if(w<=8)s+=20;else if(w<=12)s+=12;
+  if(/bitcoin|ethereum|solana|certik|base|arbitrum|l1|l2|defi|nft|dao|kol|web3|crypto|blockchain/i.test(t))s+=15;
+  if(/[%$€£]/.test(t))s+=15;if(/^\d/.test(t))s+=10;if(!t.endsWith('?'))s+=5;
+  if(!/(here'?s|this is|in this|today i|let me)/i.test(t))s+=10;
+  s=Math.min(s,100);fill.style.width=s+'%';
+  fill.style.background=s>=75?'var(--green)':s>=50?'var(--orange)':'var(--red)';
+  lbl.textContent=`${s}/100 — ${s>=75?'Strong':s>=50?'Decent':s>=25?'Weak':'Needs work'}`;
+}
+function calcScore(){
+  const imp=+document.getElementById('lg-imp').value||0;
+  const likes=+document.getElementById('lg-likes').value||0;
+  const comments=+document.getElementById('lg-comments').value||0;
+  const reposts=+document.getElementById('lg-reposts').value||0;
+  const saves=+document.getElementById('lg-saves').value||0;
+  const card=document.getElementById('score-card');
+  if(!imp&&!likes&&!comments&&!reposts&&!saves){if(card)card.style.display='none';return;}
+  if(card)card.style.display='block';
+  const sc=(likes*1)+(comments*3)+(reposts*5)+(saves*4);
+  document.getElementById('sc-big').textContent=sc;
+  document.getElementById('sc-rate').textContent=imp>0?((likes+comments+reposts+saves)/imp*100).toFixed(1)+'%':'—';
+  document.getElementById('sc-saves').textContent=saves;
+  document.getElementById('sc-comments').textContent=comments;
+}
+
+// LOG POST
+async function logPost(){
+  const hook=document.getElementById('lg-hook').value.trim();
+  if(!hook){st('lg-s','Add the post hook first.','err');return;}
+  if(!gk('notion')){st('lg-s','Add your Notion token in Settings.','err');return;}
+  const imp=+document.getElementById('lg-imp').value||0;
+  const likes=+document.getElementById('lg-likes').value||0;
+  const comments=+document.getElementById('lg-comments').value||0;
+  const reposts=+document.getElementById('lg-reposts').value||0;
+  const saves=+document.getElementById('lg-saves').value||0;
+  const postType=document.getElementById('lg-type').value;
+  const hasVisual=document.getElementById('lg-vis').checked;
+  const topics=getTopics();
+  const fullText=document.getElementById('lg-full').value.trim();
+  const btn=document.getElementById('lg-btn');
+  btn.disabled=true;btn.textContent='Saving…';
+  st('lg-s','Creating entry in Notion…','ok',0);
+  const dbId=fmtDb(gk('db'));
+  const payload={
+    parent:{database_id:dbId},
+    properties:{
+      "Post":{title:[{text:{content:hook}}]},
+      "Hook":{rich_text:[{text:{content:hook}}]},
+      "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
+      "Topic":{multi_select:topics.map(t=>({name:t}))},
+      "Post Type":{select:{name:postType}},
+      "Has Visual":{checkbox:hasVisual},
+      "Impressions (24h)":{number:imp},
+      "Likes (24h)":{number:likes},
+      "Comments (24h)":{number:comments},
+      "Reposts (24h)":{number:reposts},
+      "Saves (24h)":{number:saves},
+      "Stage":{status:{name:"Posted"}}
+    }
+  };
+  if(fullText)payload.properties["Full text"]={rich_text:[{text:{content:fullText.slice(0,2000)}}]};
+  try{
+    await notionWrite(payload);
+    st('lg-s','Saved to Notion ✓','ok');
+    ['lg-hook','lg-imp','lg-likes','lg-comments','lg-reposts','lg-saves','lg-full'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('lg-vis').checked=false;setTopics([]);
+    const card=document.getElementById('score-card');if(card)card.style.display='none';
+    const fill=document.getElementById('hf');if(fill)fill.style.width='0%';
+    const hl=document.getElementById('hl');if(hl)hl.textContent='—';
+  }catch(e){st('lg-s','Failed: '+e.message,'err',7000);}
+  finally{btn.disabled=false;btn.textContent='Save to Notion →';}
+}
+
+// VOICE BANK
+function saveBank(mode){
+  const id=mode==='reply'?'srp-txt':'scm-txt';const sid=mode==='reply'?'srp-s':'scm-s';
+  const text=document.getElementById(id)?.value.trim();
+  if(!text){st(sid,'Type the text you used first.','err');return;}
+  const b=getBank();b.push({text,type:mode,savedAt:new Date().toISOString()});setBank(b);
+  document.getElementById(id).value='';
+  st(sid,`Saved. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok');
+}
+function renderBank(){
+  const b=getBank();
+  document.getElementById('vb-count').textContent=`${b.length} example${b.length!==1?'s':''}`;
+  const list=document.getElementById('vb-list');
+  if(!b.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0;">No examples yet.</div>';return;}
+  list.innerHTML=[...b].reverse().map((e,ri)=>{
+    const i=b.length-1-ri;
+    const date=new Date(e.savedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+    return`<div class="vbi"><div style="flex:1;"><span class="vbt">${e.type||'reply'}</span><div class="vbtx">${esc(e.text)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;"><span class="vbm">${date}</span><button class="vbd" onclick="delBank(${i})">✕</button></div></div>`;
+  }).join('');
+}
+function delBank(i){const b=getBank();b.splice(i,1);setBank(b);renderBank();}
+function clearBank(){if(!confirm('Clear all voice bank examples?'))return;localStorage.removeItem('nat_vb');renderBank();}
+function exportBank(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getBank(),null,2)],{type:'application/json'}));a.download='nat-voice-bank-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+window.addEventListener('load',loadSettings);
+</script>
+</body>
+</html>
