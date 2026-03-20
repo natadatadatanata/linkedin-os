@@ -23,7 +23,7 @@ exports.handler = async (event) => {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${notionToken}`,
-        "Notion-Version": "2022-06-28",
+        "Notion-Version": "2025-02-18",
       },
     });
 
