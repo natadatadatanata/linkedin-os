@@ -204,6 +204,21 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
 .dsep{width:0.5px;height:38px;background:rgba(0,0,0,0.13);margin:0 2px;align-self:center;}
 
 @media(max-width:680px){.sb{display:none;}.dic{width:44px;height:44px;font-size:22px;border-radius:12px;}}
+
+/* POST PICKER */
+.post-picker{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;color:var(--text);outline:none;cursor:pointer;appearance:none;margin-bottom:8px;transition:border-color 0.15s;}
+.post-picker:focus{border-color:var(--blue);}
+.post-picker option{font-size:13px;padding:4px;}
+
+/* SCREENSHOT PREVIEW */
+.ss-preview{margin-top:8px;padding:10px;background:rgba(0,113,227,0.04);border:0.5px solid rgba(0,113,227,0.12);border-radius:8px;}
+.ss-preview img{max-width:100%;max-height:200px;border-radius:6px;border:0.5px solid rgba(0,0,0,0.1);display:block;}
+.ss-bar{display:flex;align-items:center;gap:8px;margin-top:8px;}
+
+/* EDITABLE DRAFT */
+.draft-edit{outline:none;border:1px dashed transparent;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:border-color 0.15s,background 0.15s;cursor:text;min-height:100px;}
+.draft-edit:focus{border-color:rgba(0,113,227,0.3);background:rgba(0,113,227,0.02);}
+.draft-hint{font-size:10px;color:var(--t3);margin-bottom:6px;font-style:italic;}
 </style>
 </head>
 <body>
@@ -302,8 +317,25 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
       <!-- REPLIES -->
       <div class="view" id="view-replies">
         <div class="tb"><div><div class="tb-t">My Replies</div><div class="tb-s">5 options in your voice</div></div></div>
-        <div class="card"><div class="cl">Your post</div><div class="ib"><textarea id="rp-post" rows="4" placeholder="Paste your LinkedIn post…"></textarea></div></div>
-        <div class="card"><div class="cl">Comment received</div><div class="ib"><textarea id="rp-comment" rows="3" placeholder="Paste the comment…"></textarea></div></div>
+        <div class="card">
+          <div class="cl">Your post</div>
+          <select id="rp-picker" class="post-picker" onchange="pickPost()">
+            <option value="">Pick from your posts or type below…</option>
+          </select>
+          <div class="ib"><textarea id="rp-post" rows="3" placeholder="Or paste your post here…"></textarea></div>
+        </div>
+        <div class="card" id="rp-comment-card">
+          <div class="cl">Comment received</div>
+          <div class="ib"><textarea id="rp-comment" rows="3" placeholder="Paste text or screenshot of the comment…"></textarea></div>
+          <div class="ss-preview" id="rp-ss-preview" style="display:none;">
+            <img id="rp-ss-img">
+            <div class="ss-bar">
+              <div class="spin" id="rp-ss-spin" style="display:none;"></div>
+              <span id="rp-ss-status" style="font-size:11px;color:var(--t3);"></span>
+              <button class="btn-out" onclick="clearScreenshot()" style="margin-left:auto;font-size:11px;">Remove</button>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="cl">Comment type</div>
           <div class="pills">
@@ -524,6 +556,7 @@ function go(tab,sbEl,dockId){
   const di=dockId?document.getElementById(dockId):document.getElementById('di-'+tab);
   if(di){di.classList.add('on');const dot=di.querySelector('.ddo');if(dot)dot.style.opacity='1';}
   if(tab==='voice')renderBank();
+  if(tab==='replies')loadPostsForPicker();
   if(tab==='settings')loadSettings();
 }
 
@@ -704,7 +737,6 @@ function renderInsights(posts,label){
 
   const top3=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3);
   const maxT=Math.max(...topics.map(t=>t.avg),1);
-  const ctx=buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg);
 
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -721,7 +753,7 @@ function renderInsights(posts,label){
       <div class="panel"><div class="pt">Post type</div>${types.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div>`).join('')}<div class="dv"></div><div class="pt">Visual impact</div><div class="pr"><span class="pn">With visual</span><span class="pv">${avgVis}</span></div><div class="pr"><span class="pn">Text only</span><span class="pv">${avgNoVis}</span></div></div>
     </div>
     <div style="margin-bottom:10px;"><div class="cl" style="margin-bottom:8px;">Top performing posts</div>${top3.map((p,i)=>`<div class="top-p"><div class="top-r">#${i+1} · Score ${p.engScore} · ${p.date}</div><div class="top-h">${esc(p.hook)}</div><div class="tags">${(p.topics||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="tag">${esc(p.postType||'')}</span><span class="tag">${p.saves} saves</span><span class="tag">${p.comments} comments</span></div></div>`).join('')}</div>
-    <div class="ctx"><div class="ctx-h"><span class="ctx-t">Copy into Claude before drafting</span><button class="btn-sm" onclick="copyCtx()" id="ctx-btn">Copy</button></div><div class="ctx-tx" id="ctx-tx">${esc(ctx)}</div></div>`;
+    <div class="card" style="margin-top:10px;background:var(--gl);border-color:rgba(40,205,65,0.15);"><div style="font-size:11px;color:var(--green);font-weight:600;">Performance context auto-injected into all AI generations</div></div>`;
 }
 
 async function loadInsights(){
@@ -733,6 +765,13 @@ async function loadInsights(){
     const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}}});
     const posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
     cachedInsightsData=posts;
+    // Cache full posts for the reply picker
+    cachedPostsList=data.results.map(p=>{
+      const props=p.properties;
+      const hook=(props['Hook']?.rich_text?.[0]?.plain_text)||(props['Post']?.title?.[0]?.plain_text)||'';
+      const fullText=(props['Full text']?.rich_text||[]).map(r=>r.plain_text).join('')||'';
+      return{hook,fullText};
+    }).filter(p=>p.hook);
     try{localStorage.setItem('nat_insights_cache',JSON.stringify(posts));}catch{}
     renderInsights(posts,'synced just now');
   }catch(e){
@@ -746,20 +785,107 @@ async function loadInsights(){
 
 function avg(arr){return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;}
 
-function buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg){
-  const trend=trendPct>5?`IMPROVING (+${trendPct}%)`:trendPct<-5?`DECLINING (${trendPct}%)`:'STABLE';
-  const tl=topics.map((t,i)=>`  ${i+1}. ${t.name}: avg ${t.avg} (${t.count} posts)`).join('\n');
-  const ttl=types.slice(0,3).map((t,i)=>`  ${i+1}. ${t.name}: avg ${t.avg}`).join('\n');
-  const top=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3).map((p,i)=>`  ${i+1}. "${p.hook}" — score ${p.engScore}, ${p.saves} saves`).join('\n');
-  const best=topics[0],bt=types[0];
-  const vis=avgVis>avgNoVis?'Include a visual — they outperform text-only for you.':'Text-only is working well for you.';
-  return`PERFORMANCE CONTEXT — ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}\n\nOVERVIEW\nTotal: ${posts.length} posts · Avg score: ${overallAvg} · Trend: ${trend}\n\nTOPIC PERFORMANCE\n${tl}\n\nBEST POST TYPES\n${ttl}\n\nVISUAL IMPACT\n${vis}\n\nTOP 3 HOOKS — study these\n${top}\n\nACTION\n${best?`Double down on ${best.name} posts.`:''} ${bt?`Format: ${bt.name}.`:''}`;
+// PERFORMANCE CONTEXT — auto-injected into all AI calls
+function perfCtx(){
+  if(!cachedInsightsData||!cachedInsightsData.length)return'';
+  const posts=cachedInsightsData;
+  const avg_=avg(posts.map(p=>p.engScore));
+  const topicMap={};
+  posts.forEach(p=>(p.topics||[]).forEach(t=>{if(!topicMap[t])topicMap[t]=[];topicMap[t].push(p.engScore);}));
+  const topics=Object.entries(topicMap).map(([k,v])=>({name:k,avg:avg(v)})).sort((a,b)=>b.avg-a.avg).slice(0,5);
+  const top3=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3);
+  return`\n\nNat's LinkedIn performance data (use to inform tone and strategy):\nAvg engagement: ${avg_} | ${posts.length} posts tracked\nBest topics: ${topics.map(t=>`${t.name} (avg ${t.avg})`).join(', ')}\nTop hooks: ${top3.map(p=>`"${p.hook.slice(0,80)}" (score ${p.engScore})`).join(' | ')}`;
 }
 
-function copyCtx(){
-  navigator.clipboard.writeText(document.getElementById('ctx-tx')?.innerText||'').then(()=>{
-    const btn=document.getElementById('ctx-btn');btn.textContent='Copied ✓';setTimeout(()=>btn.textContent='Copy',2000);
+// POST PICKER + SCREENSHOT
+let cachedPostsList=[];
+function loadPostsForPicker(){
+  const sel=document.getElementById('rp-picker');if(!sel)return;
+  sel.innerHTML='<option value="">Pick from your posts or type below…</option>';
+  if(cachedPostsList.length){
+    cachedPostsList.forEach((p,i)=>{
+      const o=document.createElement('option');o.value=i;
+      o.textContent=p.hook.slice(0,80)+(p.hook.length>80?'…':'');
+      sel.appendChild(o);
+    });
+  } else if(gk('notion')&&gk('db')){
+    const o=document.createElement('option');o.value='__load__';o.textContent='Loading posts…';sel.appendChild(o);
+    notionRead({filter:{property:'Stage',status:{equals:'Posted'}}}).then(data=>{
+      cachedPostsList=data.results.map(p=>{
+        const props=p.properties;
+        const hook=(props['Hook']?.rich_text?.[0]?.plain_text)||(props['Post']?.title?.[0]?.plain_text)||'';
+        const fullText=(props['Full text']?.rich_text||[]).map(r=>r.plain_text).join('')||'';
+        return{hook,fullText};
+      }).filter(p=>p.hook);
+      loadPostsForPicker();
+    }).catch(()=>{sel.querySelector('[value="__load__"]')?.remove();});
+  }
+}
+function pickPost(){
+  const sel=document.getElementById('rp-picker');
+  const ta=document.getElementById('rp-post');
+  const idx=sel.value;
+  if(idx===''||idx==='__load__'){ta.value='';return;}
+  const post=cachedPostsList[+idx];
+  if(post)ta.value=post.fullText||post.hook;
+}
+
+// SCREENSHOT PASTE HANDLER
+let screenshotData=null;
+function initScreenshotPaste(){
+  const ta=document.getElementById('rp-comment');if(!ta)return;
+  ta.addEventListener('paste',async(e)=>{
+    const items=e.clipboardData?.items;if(!items)return;
+    for(const item of items){
+      if(item.type.startsWith('image/')){
+        e.preventDefault();
+        const blob=item.getAsFile();
+        const reader=new FileReader();
+        reader.onload=async()=>{
+          const dataUrl=reader.result;
+          const base64=dataUrl.split(',')[1];
+          const mediaType=item.type;
+          document.getElementById('rp-ss-preview').style.display='block';
+          document.getElementById('rp-ss-img').src=dataUrl;
+          document.getElementById('rp-ss-spin').style.display='block';
+          document.getElementById('rp-ss-status').textContent='Extracting text from screenshot…';
+          try{
+            const text=await extractScreenshot(base64,mediaType);
+            ta.value=text;
+            document.getElementById('rp-ss-status').textContent='Text extracted ✓';
+            document.getElementById('rp-ss-spin').style.display='none';
+            screenshotData=null;
+          }catch(err){
+            document.getElementById('rp-ss-status').textContent='Could not extract: '+err.message;
+            document.getElementById('rp-ss-spin').style.display='none';
+            screenshotData={base64,mediaType};
+          }
+        };
+        reader.readAsDataURL(blob);
+        break;
+      }
+    }
   });
+}
+async function extractScreenshot(base64,mediaType){
+  const key=gk('ant');
+  if(!key)throw new Error('Add API key in Settings');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+      {type:'text',text:'Extract the comment text from this screenshot. Return ONLY the raw comment text, nothing else — no labels, no quotes, no explanation.'}
+    ]}]})
+  });
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'Vision API error');}
+  const d=await r.json();
+  return d.content?.filter(b=>b.type==='text').map(b=>b.text).join('\n')||'';
+}
+function clearScreenshot(){
+  document.getElementById('rp-ss-preview').style.display='none';
+  document.getElementById('rp-ss-img').src='';
+  screenshotData=null;
 }
 
 // AI INSIGHTS — Claude analyzes your performance data
@@ -820,9 +946,9 @@ async function writePost(){
   const angles={contrarian:'Take the contrarian angle — challenge mainstream thinking with data or experience.',data:'Lead with the most shocking data point. Build around numbers and proof.',story:'Frame as personal experience from working in crypto/marketing. Raw, real, specific.',framework:'Structure as a clear framework or mental model people can save and reuse.','hot-take':'Bold opinionated hot take that sparks debate and strong reactions.',authority:'Position as expert insight from years of hands-on Web3/marketing experience. Teach something specific.',tactical:'Step by step tactical breakdown. Specific, actionable, no fluff. People should screenshot this.',myth:'Call out a common misconception and dismantle it with evidence or experience.',prediction:'Make a specific forward-looking prediction with reasoning. Be bold but back it up.',lesson:'Share a hard lesson learned from a real experience — what went wrong and the takeaway.',comparison:'Show a clear before/after or X vs Y comparison that reveals an insight.',behind:'Pull back the curtain on how something actually works behind the scenes in crypto/marketing.',
     'case-study':'Break down a real example — what happened, why it worked or failed, and the lesson.',trend:'Analyze a current trend — where it came from, where it is headed, and what it means.'};
   try{
-    const text=await callClaude(BASE+voiceCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post. CRITICAL: Match the EXACT style of the example posts above — same sentence length, same rhythm, same level of specificity, same formatting. The post should be indistinguishable from the examples. Format exactly as it should appear on LinkedIn: line breaks between sentences, hook first, punchy ending. Output ONLY the post text, no labels, no commentary.',
+    const text=await callClaude(BASE+voiceCtx()+perfCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post. CRITICAL: Match the EXACT style of the example posts above — same sentence length, same rhythm, same level of specificity, same formatting. The post should be indistinguishable from the examples. Format exactly as it should appear on LinkedIn: line breaks between sentences, hook first, punchy ending. Output ONLY the post text, no labels, no commentary.',
       `Topic: ${topic}\nAngle: ${angles[angle]||angles.contrarian}\n\nWrite the post. Remember: it must read like it was written by the same person who wrote those example posts. Match the voice exactly.`,2000);
-    res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="rb" id="draft-txt">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft()">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
+    res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="draft-hint">Click to edit directly</div><div class="rb draft-edit" id="draft-txt" contenteditable="true">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft()">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
   }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
   finally{btn.disabled=false;btn.textContent='Write in my voice →';}
 }
@@ -840,7 +966,7 @@ async function genReplies(){
   document.getElementById('save-rp').style.display='none';
   const tm={neutral:'neutral engagement',agree:'agreement',disagree:'pushback',question:'a direct question'};
   const s=['Short and punchy (1 sentence)','Conversational (2 sentences)','Adds a data point','Ends with a question','Playful but on-brand'];
-  const sys=BASE+voiceCtx()+`\n\nGenerate exactly 5 reply options. Max 3 sentences each. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, reply on next. Nothing else.`;
+  const sys=BASE+voiceCtx()+perfCtx()+`\n\nGenerate exactly 5 reply options. Max 3 sentences each. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, reply on next. Nothing else.`;
   try{
     const text=await callClaude(sys,`My post:\n${post}\n\nComment (${tm[tone]}):\n${comment}\n\nWrite 5 replies.`);
     renderOpts(parseOpts(text,s),res,'rp');
@@ -861,7 +987,7 @@ async function genComments(){
   document.getElementById('save-cm').style.display='none';
   const gm={visible:'make Nat visible and memorable',insight:'add genuine insight',disagree:'respectfully push back with data',question:'ask a sharp specific question that shows you read it',relate:'share a brief relevant experience from Nat\'s background'};
   const s=['Direct take (1 sentence)','Insight add (specific angle)','Experience tie-in','Contrarian / light pushback','Sharp question'];
-  const sys=BASE+voiceCtx()+`\n\nGoal: ${gm[goal]}${ang?`\nAngle: ${ang}`:''}\n\nGenerate exactly 5 completely different comment options. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, comment on next. Nothing else.`;
+  const sys=BASE+voiceCtx()+perfCtx()+`\n\nGoal: ${gm[goal]}${ang?`\nAngle: ${ang}`:''}\n\nGenerate exactly 5 completely different comment options. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, comment on next. Nothing else.`;
   try{
     const text=await callClaude(sys,`Post:\n${post}\n\nWrite 5 different comments.`);
     renderOpts(parseOpts(text,s),res,'cm');
@@ -1055,7 +1181,7 @@ function clearBank(){if(!confirm('Clear all voice bank examples?'))return;localS
 function exportBank(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getBank(),null,2)],{type:'application/json'}));a.download='nat-voice-bank-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-window.addEventListener('load',()=>{loadSettings();if(cachedInsightsData&&cachedInsightsData.length)renderInsights(cachedInsightsData,'cached');});
+window.addEventListener('load',()=>{loadSettings();initScreenshotPaste();if(cachedInsightsData&&cachedInsightsData.length)renderInsights(cachedInsightsData,'cached');});
 </script>
 </body>
 </html>
