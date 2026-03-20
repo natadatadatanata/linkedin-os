@@ -817,7 +817,7 @@ async function loadInsights(){
   el.innerHTML=`<div class="loading"><div class="spin"></div><span>Reading your Notion data…</span></div>`;
   try{
     const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}}});
-    const posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
+    const posts=data.results.map(parsePost);
     cachedInsightsData=posts;
     // Cache full posts for the reply picker
     cachedPostsList=data.results.map(p=>{
