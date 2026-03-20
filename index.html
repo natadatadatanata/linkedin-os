@@ -276,15 +276,11 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
       <div class="view on" id="view-insights">
         <div class="tb">
           <div><div class="tb-t">Insights</div><div class="tb-s">AI-powered analysis of your LinkedIn performance</div></div>
-          <div style="display:flex;gap:6px;">
-            <button class="btn" onclick="loadInsights()">Sync from Notion</button>
-            <button class="btn-out" id="ai-insights-btn" onclick="aiInsights()" style="display:none;">AI Analysis</button>
-          </div>
+          <button class="btn" onclick="loadInsights()">Sync from Notion</button>
         </div>
         <div id="ins-content">
           <div class="empty"><div class="empty-i">📊</div><div class="empty-t">Ready to sync</div><div class="empty-s">Click "Sync from Notion" to pull your post data and see what's working.</div></div>
         </div>
-        <div id="ai-insights-content" style="display:none;margin-top:12px;"></div>
       </div>
 
       <!-- WRITE POST -->
@@ -310,7 +306,11 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
             <button class="pill" data-v="trend" onclick="sp(this,'angle')">Trend analysis</button>
           </div>
         </div>
-        <button class="btn btn-f" onclick="writePost()" id="write-btn">Write in my voice →</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-f" onclick="writePost()" id="write-btn" style="flex:1;">Write in my voice →</button>
+          <button class="btn-out" onclick="generateIdeas()" id="ideas-btn">Suggest 5 ideas</button>
+        </div>
+        <div id="ideas-res"></div>
         <div id="write-res"></div>
       </div>
 
@@ -764,7 +764,6 @@ function parsePost(p){
 function renderInsights(posts,label){
   const el=document.getElementById('ins-content');
   if(!posts.length){el.innerHTML='<div class="empty"><div class="empty-i">📝</div><div class="empty-t">No data yet</div><div class="empty-s">Log posts with metrics marked as Posted in Notion. Come back once you have at least 5.</div></div>';return;}
-  const aiBtn=document.getElementById('ai-insights-btn');if(aiBtn&&gk('ant'))aiBtn.style.display='inline-block';
 
   const sorted=[...posts].sort((a,b)=>a.date.localeCompare(b.date));
   const total=posts.length;
@@ -942,31 +941,53 @@ function clearScreenshot(){
   screenshotData=null;
 }
 
-// AI INSIGHTS — Claude analyzes your performance data
+// GENERATE POST IDEAS — based on performance data
 let cachedInsightsData=null;
 try{cachedInsightsData=JSON.parse(localStorage.getItem('nat_insights_cache')||'null');}catch{}
-async function aiInsights(){
-  if(!gk('ant')){return;}
-  if(!cachedInsightsData||!cachedInsightsData.length){return;}
-  const el=document.getElementById('ai-insights-content');
-  el.style.display='block';
-  el.innerHTML=`<div class="loading"><div class="spin"></div><span>Claude is analyzing your post performance…</span></div>`;
-  const btn=document.getElementById('ai-insights-btn');
-  btn.disabled=true;btn.textContent='Analyzing…';
-  try{
-    const posts=cachedInsightsData;
+async function generateIdeas(){
+  const el=document.getElementById('ideas-res');
+  const btn=document.getElementById('ideas-btn');
+  if(!gk('ant')){el.innerHTML='<div class="ebox">Add your Anthropic API key in Settings first.</div>';return;}
+  btn.disabled=true;btn.textContent='Generating…';
+  el.innerHTML=`<div class="loading"><div class="spin"></div><span>Analyzing your data for post ideas…</span></div>`;
+
+  let postData='No performance data available — suggest ideas based on crypto/Web3 marketing trends.';
+  // Try cached data first, then fetch from Notion
+  let posts=cachedInsightsData;
+  if((!posts||!posts.length)&&gk('notion')){
+    try{
+      const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}},sorts:[{property:'Engagement Score',direction:'descending'}]});
+      posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
+    }catch{}
+  }
+  if(posts&&posts.length){
     const sorted=[...posts].sort((a,b)=>b.engScore-a.engScore);
-    const postData=sorted.slice(0,20).map((p,i)=>{
-      return`${i+1}. "${p.hook}" | Topics: ${(p.topics||[]).join(', ')} | Type: ${p.postType} | Visual: ${p.hasVisual?'yes':'no'} | Imp: ${p.imp} | Likes: ${p.likes} | Comments: ${p.comments} | Reposts: ${p.reposts} | Saves: ${p.saves} | Score: ${p.engScore} | Date: ${p.date}`;
-    }).join('\n');
-    const analysis=await callClaude(
-      `You are a LinkedIn growth strategist analyzing post performance data for Natalia Gavrilovic (crypto marketing, Web3). Provide actionable, specific insights — not generic advice. Be direct and data-driven. Use her actual numbers.`,
-      `Here are my top ${Math.min(posts.length,20)} LinkedIn posts by engagement score:\n\n${postData}\n\nTotal posts analyzed: ${posts.length}\n\nGive me a sharp analysis covering:\n1. PATTERNS — What specific patterns do you see in my top performers vs lower ones? (hook style, topics, length, visuals)\n2. CONTENT STRATEGY — Based on the data, what should I post MORE of and what should I stop doing?\n3. HOOK ANALYSIS — Which of my hooks worked best and why? What hook patterns should I repeat?\n4. TIMING & FORMAT — Any patterns in visual vs text-only, post types, or topics that perform?\n5. NEXT 5 POSTS — Give me 5 specific post ideas based on what works, with suggested hooks.\n\nBe brutally honest. Use my actual numbers. No generic LinkedIn advice.`,
-      2500
+    postData=sorted.slice(0,15).map((p,i)=>`${i+1}. "${p.hook}" | Topics: ${(p.topics||[]).join(', ')} | Type: ${p.postType} | Score: ${p.engScore}`).join('\n');
+    postData=`Here are my top ${Math.min(posts.length,15)} posts by engagement:\n\n${postData}\n\nTotal posts: ${posts.length}`;
+  }
+
+  try{
+    const ideas=await callClaude(
+      BASE+voiceCtx(),
+      `${postData}\n\nBased on what performs best, give me 5 specific post ideas I should write next.\n\nFor each idea:\n- A ready-to-use hook (first line of the post)\n- The angle (2-3 words)\n- Why it'll work based on my data (1 sentence)\n\nFormat each as:\nHOOK: [the hook]\nANGLE: [angle]\nWHY: [reason]\n\nNo preamble. Just the 5 ideas.`,
+      1500
     );
-    el.innerHTML=`<div class="result" style="border-left-color:var(--blue);"><div class="rl">AI Analysis</div><div class="rb">${esc(analysis)}</div></div>`;
+    const ideaBlocks=ideas.split(/\n(?=HOOK:)/).filter(b=>b.trim());
+    if(ideaBlocks.length){
+      el.innerHTML=`<div style="margin-top:12px;"><div class="cl" style="margin-bottom:8px;">Post ideas based on your data</div>${ideaBlocks.map((idea,i)=>{
+        const hookMatch=idea.match(/HOOK:\s*(.+)/);
+        const angleMatch=idea.match(/ANGLE:\s*(.+)/);
+        const whyMatch=idea.match(/WHY:\s*(.+)/);
+        const hook=hookMatch?hookMatch[1].trim():'';
+        const angle=angleMatch?angleMatch[1].trim():'';
+        const why=whyMatch?whyMatch[1].trim():'';
+        return`<div class="result" style="margin-bottom:8px;cursor:pointer;" onclick="document.getElementById('w-topic').value='${esc(hook.replace(/'/g,"\\'"))}';this.style.opacity='0.6';"><div class="rl">#${i+1} · ${esc(angle)}</div><div class="rb" style="font-weight:500;">${esc(hook)}</div><div class="rb" style="font-size:11px;color:var(--t3);margin-top:2px;">${esc(why)}</div><div style="font-size:10px;color:var(--blue);margin-top:4px;">Click to use as topic →</div></div>`;
+      }).join('')}</div>`;
+    }else{
+      el.innerHTML=`<div class="result"><div class="rl">Ideas</div><div class="rb">${esc(ideas)}</div></div>`;
+    }
   }catch(e){el.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
-  finally{btn.disabled=false;btn.textContent='AI Analysis';}
+  finally{btn.disabled=false;btn.textContent='Suggest 5 ideas';}
 }
 
 // WRITE POST — reads Notion top posts first, then calls Claude
