@@ -1140,13 +1140,12 @@ async function logPost(){
       "Hook":{rich_text:[{text:{content:hook}}]},
       "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
       "Topic":{multi_select:topics.map(t=>({name:t}))},
-      "Post Type":{select:{name:postType}},
       "Has Visual":{checkbox:hasVisual},
-      "Impressions (24h)":{number:imp},
-      "Likes (24h)":{number:likes},
-      "Comments (24h)":{number:comments},
-      "Reposts (24h)":{number:reposts},
-      "Saves (24h)":{number:saves},
+      "Impressions ":{number:imp},
+      "Likes ":{number:likes},
+      "Comments":{number:comments},
+      "Reposts ":{number:reposts},
+      "Saves ":{number:saves},
       "Stage":{status:{name:"Posted"}}
     }
   };
@@ -1163,6 +1162,20 @@ async function logPost(){
   finally{btn.disabled=false;btn.textContent='Save to Notion →';}
 }
 
+// VOICE BANK PAGE ID (Notion page for storing voice examples)
+const VB_PAGE_ID='328a48bb-eef1-8123-8393-c67bf057af09';
+
+async function notionAppend(pageId,text){
+  const notionToken=gk('notion');
+  if(!notionToken)throw new Error('Add your Notion token in Settings first.');
+  const res=await fetch('/api/notion-append',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({notionToken,pageId,text})
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.message||e.error||'Notion append error');}
+  return res.json();
+}
+
 // VOICE BANK
 async function saveBank(mode){
   const id=mode==='reply'?'srp-txt':'scm-txt';const sid=mode==='reply'?'srp-s':'scm-s';
@@ -1171,22 +1184,11 @@ async function saveBank(mode){
   const b=getBank();b.push({text,type:mode,savedAt:new Date().toISOString()});setBank(b);
   document.getElementById(id).value='';
   st(sid,`Saved locally. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok',0);
-  // Auto-sync to Notion
-  if(gk('notion')&&gk('db')){
+  // Sync to Voice Bank page in Notion
+  if(gk('notion')){
     try{
-      const dbId=fmtDb(gk('db'));
-      await notionWrite({
-        parent:{database_id:dbId},
-        properties:{
-          "Post":{title:[{text:{content:`[Voice Bank] ${mode}: ${text.slice(0,80)}${text.length>80?'…':''}`}}]},
-          "Hook":{rich_text:[{text:{content:text.slice(0,200)}}]},
-          "Full text":{rich_text:[{text:{content:text.slice(0,2000)}}]},
-          "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
-          "Topic":{multi_select:[{name:"Voice Bank"}]},
-          "Post Type":{select:{name:"Voice Bank"}},
-          "Stage":{status:{name:"Voice Bank"}}
-        }
-      });
+      const date=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      await notionAppend(VB_PAGE_ID,`[${mode}] ${date} — ${text}`);
       st(sid,`Saved to voice bank (${b.length}) + synced to Notion ✓`,'ok');
     }catch(e){
       st(sid,`Saved locally (${b.length}). Notion sync failed: ${e.message}`,'err',5000);
@@ -1212,21 +1214,12 @@ function addBankDirect(){
   document.getElementById('vb-add-txt').value='';
   st('vb-add-s',`Saved. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok');
   renderBank();
-  // Auto-sync to Notion
-  if(gk('notion')&&gk('db')){
-    const dbId=fmtDb(gk('db'));
-    notionWrite({
-      parent:{database_id:dbId},
-      properties:{
-        "Post":{title:[{text:{content:`[Voice Bank] ${type}: ${text.slice(0,80)}${text.length>80?'…':''}`}}]},
-        "Hook":{rich_text:[{text:{content:text.slice(0,200)}}]},
-        "Full text":{rich_text:[{text:{content:text.slice(0,2000)}}]},
-        "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
-        "Topic":{multi_select:[{name:"Voice Bank"}]},
-        "Post Type":{select:{name:"Voice Bank"}},
-        "Stage":{status:{name:"Voice Bank"}}
-      }
-    }).then(()=>{st('vb-add-s',`Saved (${b.length}) + synced to Notion ✓`,'ok');}).catch(()=>{});
+  // Sync to Voice Bank page in Notion
+  if(gk('notion')){
+    const date=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    notionAppend(VB_PAGE_ID,`[${type}] ${date} — ${text}`)
+      .then(()=>{st('vb-add-s',`Saved (${b.length}) + synced to Notion ✓`,'ok');})
+      .catch(()=>{});
   }
 }
 function delBank(i){const b=getBank();b.splice(i,1);setBank(b);renderBank();}
