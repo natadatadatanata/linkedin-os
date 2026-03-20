@@ -363,8 +363,9 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
           <div class="cl">Goal</div>
           <div class="pills">
             <button class="pill on" data-v="visible" onclick="sp(this,'goal')">Get noticed</button>
+            <button class="pill" data-v="agree" onclick="sp(this,'goal')">Agree</button>
+            <button class="pill" data-v="disagree" onclick="sp(this,'goal')">Disagree</button>
             <button class="pill" data-v="insight" onclick="sp(this,'goal')">Add insight</button>
-            <button class="pill" data-v="disagree" onclick="sp(this,'goal')">Pushback</button>
             <button class="pill" data-v="question" onclick="sp(this,'goal')">Sharp question</button>
             <button class="pill" data-v="relate" onclick="sp(this,'goal')">Share experience</button>
           </div>
@@ -1038,11 +1039,12 @@ async function genComments(){
   btn.disabled=true;btn.textContent='Writing…';
   res.innerHTML=`<div class="loading"><div class="spin"></div><span>Crafting comments in your voice…</span></div>`;
   document.getElementById('save-cm').style.display='none';
-  const gm={visible:'make Nat visible and memorable',insight:'add genuine insight',disagree:'respectfully push back with data',question:'ask a sharp specific question that shows you read it',relate:'share a brief relevant experience from Nat\'s background'};
-  const s=['Direct take (1 sentence)','Insight add (specific angle)','Experience tie-in','Contrarian / light pushback','Sharp question'];
-  const sys=BASE+voiceCtx()+perfCtx()+`\n\nGoal: ${gm[goal]}${ang?`\nAngle: ${ang}`:''}\n\nGenerate exactly 5 completely different comment options. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, comment on next. Nothing else.`;
+  const gm={visible:'make Nat visible and memorable — stand out in the comment section',agree:'agree with the post and reinforce the point — add weight, not just "great post"',disagree:'respectfully disagree or push back — challenge the claim with data, logic, or a counterexample',insight:'add genuine insight that builds on the post — go deeper, not sideways',question:'ask a sharp, specific question that shows you read and understood the post',relate:'share a brief relevant experience from Nat\'s crypto/marketing background that connects to the post'};
+  const s=['Short and sharp (1-2 sentences)','Builds on the angle with a specific point','Adds data or a real example','Ties to crypto/marketing experience','Ends with a provocative question'];
+  const angleInstruction=ang?`\n\nCRITICAL — THE USER'S ANGLE: "${ang}"\nALL 5 comments MUST be built around this specific angle/take. Do NOT ignore it. Do NOT go in a completely different direction. Every comment should express or build on this angle in a different way. The angle is the user's position — the comments are 5 different ways to express it.`:'';
+  const sys=BASE+voiceCtx()+perfCtx()+`\n\nGoal: ${gm[goal]||gm.visible}${angleInstruction}\n\nGenerate exactly 5 comment options. Each must be a different way to express the same core angle/take. Max 3 sentences each. Label each:\nOPTION 1 — ${s[0]}\nOPTION 2 — ${s[1]}\nOPTION 3 — ${s[2]}\nOPTION 4 — ${s[3]}\nOPTION 5 — ${s[4]}\nLabel on its own line, comment on next. Nothing else.`;
   try{
-    const text=await callClaude(sys,`Post:\n${post}\n\nWrite 5 different comments.`);
+    const text=await callClaude(sys,`Post:\n${post}${ang?`\n\nMy angle/take: ${ang}`:''}\n\nWrite 5 comments that all express my angle. Different styles, same core take.`);
     renderOpts(parseOpts(text,s),res,'cm');
     document.getElementById('save-cm').style.display='block';
   }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
