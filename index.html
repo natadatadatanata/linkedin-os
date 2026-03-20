@@ -668,72 +668,80 @@ function parsePost(p){
   const txt=k=>props[k]?.rich_text?.[0]?.plain_text||'';
   const dt=k=>props[k]?.date?.start||null;
   const topics=(props['Topic']?.multi_select||[]).map(t=>t.name);
-  const imp=num('Impressions (24h)'),likes=num('Likes (24h)'),comments=num('Comments (24h)'),reposts=num('Reposts (24h)'),saves=num('Saves (24h)');
+  const imp=num('Impressions ')||num('Impressions (24h)'),likes=num('Likes ')||num('Likes (24h)'),comments=num('Comments')||num('Comments (24h)'),reposts=num('Reposts ')||num('Reposts (24h)'),saves=num('Saves ')||num('Saves (24h)');
   const engScore=(likes*1)+(comments*3)+(reposts*5)+(saves*4);
-  return{hook:txt('Hook')||ttl('Post'),topics,postType:sel('Post Type')||'',hasVisual:chk('Has Visual'),imp,likes,comments,reposts,saves,engScore,date:dt('Posted on')||p.created_time?.slice(0,10)||''};
+  return{hook:txt('Hook')||ttl('Post'),topics,postType:sel('Performance')||sel('Post Type')||'',hasVisual:chk('Has Visual'),imp,likes,comments,reposts,saves,engScore,date:dt('Posted on')||p.created_time?.slice(0,10)||''};
 }
 
 // INSIGHTS
+function renderInsights(posts,label){
+  const el=document.getElementById('ins-content');
+  if(!posts.length){el.innerHTML='<div class="empty"><div class="empty-i">📝</div><div class="empty-t">No data yet</div><div class="empty-s">Log posts with metrics marked as Posted in Notion. Come back once you have at least 5.</div></div>';return;}
+  const aiBtn=document.getElementById('ai-insights-btn');if(aiBtn&&gk('ant'))aiBtn.style.display='inline-block';
+
+  const sorted=[...posts].sort((a,b)=>a.date.localeCompare(b.date));
+  const total=posts.length;
+  const overallAvg=avg(posts.map(p=>p.engScore));
+
+  const topicMap={};
+  posts.forEach(p=>(p.topics||[]).forEach(t=>{if(!topicMap[t])topicMap[t]=[];topicMap[t].push(p.engScore);}));
+  const topics=Object.entries(topicMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg);
+
+  const typeMap={};
+  posts.forEach(p=>{const k=p.postType||'Unknown';if(!typeMap[k])typeMap[k]=[];typeMap[k].push(p.engScore);});
+  const types=Object.entries(typeMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg).slice(0,5);
+
+  const wv=posts.filter(p=>p.hasVisual).map(p=>p.engScore);
+  const nv=posts.filter(p=>!p.hasVisual).map(p=>p.engScore);
+  const avgVis=avg(wv),avgNoVis=avg(nv);
+
+  const recent=sorted.slice(-5).map(p=>p.engScore);
+  const prev=sorted.slice(-10,-5).map(p=>p.engScore);
+  const avgR=avg(recent),avgP=avg(prev);
+  const trendPct=avgP>0?Math.round((avgR-avgP)/avgP*100):0;
+  const tc=trendPct>5?'tu':trendPct<-5?'td':'tf';
+  const ti=trendPct>5?'↑':trendPct<-5?'↓':'→';
+
+  const top3=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3);
+  const maxT=Math.max(...topics.map(t=>t.avg),1);
+  const ctx=buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg);
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t3);">${total} posts · ${esc(label)}</span>
+      <button class="btn-sm" onclick="loadInsights()">Sync now</button>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-n">${total}</div><div class="kpi-l">Posts</div></div>
+      <div class="kpi"><div class="kpi-n">${overallAvg}</div><div class="kpi-l">Avg score</div></div>
+      <div class="kpi"><div class="kpi-n"><span class="trend ${tc}">${ti} ${Math.abs(trendPct)}%</span></div><div class="kpi-l">Trend</div></div>
+    </div>
+    <div class="two">
+      <div class="panel"><div class="pt">Topic performance</div>${topics.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div><div class="mbar"><div class="mbf" style="width:${Math.round(t.avg/maxT*100)}%"></div></div>`).join('')}</div>
+      <div class="panel"><div class="pt">Post type</div>${types.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div>`).join('')}<div class="dv"></div><div class="pt">Visual impact</div><div class="pr"><span class="pn">With visual</span><span class="pv">${avgVis}</span></div><div class="pr"><span class="pn">Text only</span><span class="pv">${avgNoVis}</span></div></div>
+    </div>
+    <div style="margin-bottom:10px;"><div class="cl" style="margin-bottom:8px;">Top performing posts</div>${top3.map((p,i)=>`<div class="top-p"><div class="top-r">#${i+1} · Score ${p.engScore} · ${p.date}</div><div class="top-h">${esc(p.hook)}</div><div class="tags">${(p.topics||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="tag">${esc(p.postType||'')}</span><span class="tag">${p.saves} saves</span><span class="tag">${p.comments} comments</span></div></div>`).join('')}</div>
+    <div class="ctx"><div class="ctx-h"><span class="ctx-t">Copy into Claude before drafting</span><button class="btn-sm" onclick="copyCtx()" id="ctx-btn">Copy</button></div><div class="ctx-tx" id="ctx-tx">${esc(ctx)}</div></div>`;
+}
+
 async function loadInsights(){
   const el=document.getElementById('ins-content');
-  if(!gk('ant')){el.innerHTML='<div class="ebox">Add your Anthropic API key in Settings first.</div>';return;}
   if(!gk('notion')){el.innerHTML='<div class="ebox">Add your Notion token in Settings first.</div>';return;}
+  if(!gk('db')){el.innerHTML='<div class="ebox">Add your Notion Database ID in Settings first.</div>';return;}
   el.innerHTML=`<div class="loading"><div class="spin"></div><span>Reading your Notion data…</span></div>`;
   try{
     const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}}});
     const posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
     cachedInsightsData=posts;
-    if(!posts.length){el.innerHTML='<div class="empty"><div class="empty-i">📝</div><div class="empty-t">No data yet</div><div class="empty-s">Log posts with metrics marked as Posted in Notion. Come back once you have at least 5.</div></div>';return;}
-    const aiBtn=document.getElementById('ai-insights-btn');if(aiBtn&&gk('ant'))aiBtn.style.display='inline-block';
-
-    const sorted=[...posts].sort((a,b)=>a.date.localeCompare(b.date));
-    const total=posts.length;
-    const overallAvg=avg(posts.map(p=>p.engScore));
-
-    // topics
-    const topicMap={};
-    posts.forEach(p=>(p.topics||[]).forEach(t=>{if(!topicMap[t])topicMap[t]=[];topicMap[t].push(p.engScore);}));
-    const topics=Object.entries(topicMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg);
-
-    // types
-    const typeMap={};
-    posts.forEach(p=>{const k=p.postType||'Unknown';if(!typeMap[k])typeMap[k]=[];typeMap[k].push(p.engScore);});
-    const types=Object.entries(typeMap).map(([k,v])=>({name:k,avg:avg(v),count:v.length})).sort((a,b)=>b.avg-a.avg).slice(0,5);
-
-    // visual
-    const wv=posts.filter(p=>p.hasVisual).map(p=>p.engScore);
-    const nv=posts.filter(p=>!p.hasVisual).map(p=>p.engScore);
-    const avgVis=avg(wv),avgNoVis=avg(nv);
-
-    // trend
-    const recent=sorted.slice(-5).map(p=>p.engScore);
-    const prev=sorted.slice(-10,-5).map(p=>p.engScore);
-    const avgR=avg(recent),avgP=avg(prev);
-    const trendPct=avgP>0?Math.round((avgR-avgP)/avgP*100):0;
-    const tc=trendPct>5?'tu':trendPct<-5?'td':'tf';
-    const ti=trendPct>5?'↑':trendPct<-5?'↓':'→';
-
-    const top3=[...posts].sort((a,b)=>b.engScore-a.engScore).slice(0,3);
-    const maxT=Math.max(...topics.map(t=>t.avg),1);
-    const ctx=buildCtx(posts,topics,types,trendPct,avgVis,avgNoVis,overallAvg);
-
-    el.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t3);">${total} posts synced</span>
-        <button class="btn-sm" onclick="loadInsights()">Sync now</button>
-      </div>
-      <div class="kpi-row">
-        <div class="kpi"><div class="kpi-n">${total}</div><div class="kpi-l">Posts</div></div>
-        <div class="kpi"><div class="kpi-n">${overallAvg}</div><div class="kpi-l">Avg score</div></div>
-        <div class="kpi"><div class="kpi-n"><span class="trend ${tc}">${ti} ${Math.abs(trendPct)}%</span></div><div class="kpi-l">Trend</div></div>
-      </div>
-      <div class="two">
-        <div class="panel"><div class="pt">Topic performance</div>${topics.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div><div class="mbar"><div class="mbf" style="width:${Math.round(t.avg/maxT*100)}%"></div></div>`).join('')}</div>
-        <div class="panel"><div class="pt">Post type</div>${types.map(t=>`<div class="pr"><span class="pn">${esc(t.name)}</span><span class="pv">${t.avg}</span></div>`).join('')}<div class="dv"></div><div class="pt">Visual impact</div><div class="pr"><span class="pn">With visual</span><span class="pv">${avgVis}</span></div><div class="pr"><span class="pn">Text only</span><span class="pv">${avgNoVis}</span></div></div>
-      </div>
-      <div style="margin-bottom:10px;"><div class="cl" style="margin-bottom:8px;">Top performing posts</div>${top3.map((p,i)=>`<div class="top-p"><div class="top-r">#${i+1} · Score ${p.engScore} · ${p.date}</div><div class="top-h">${esc(p.hook)}</div><div class="tags">${(p.topics||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="tag">${esc(p.postType||'')}</span><span class="tag">${p.saves} saves</span><span class="tag">${p.comments} comments</span></div></div>`).join('')}</div>
-      <div class="ctx"><div class="ctx-h"><span class="ctx-t">Copy into Claude before drafting</span><button class="btn-sm" onclick="copyCtx()" id="ctx-btn">Copy</button></div><div class="ctx-tx" id="ctx-tx">${esc(ctx)}</div></div>`;
-  }catch(e){el.innerHTML=`<div class="ebox">${esc(e.message)}<br><button class="btn-out" onclick="loadInsights()" style="margin-top:8px;">Retry</button></div>`;}
+    try{localStorage.setItem('nat_insights_cache',JSON.stringify(posts));}catch{}
+    renderInsights(posts,'synced just now');
+  }catch(e){
+    if(cachedInsightsData&&cachedInsightsData.length){
+      renderInsights(cachedInsightsData,'cached · sync failed: '+e.message);
+    }else{
+      el.innerHTML=`<div class="ebox">${esc(e.message)}<br><button class="btn-out" onclick="loadInsights()" style="margin-top:8px;">Retry</button></div>`;
+    }
+  }
 }
 
 function avg(arr){return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;}
@@ -756,6 +764,7 @@ function copyCtx(){
 
 // AI INSIGHTS — Claude analyzes your performance data
 let cachedInsightsData=null;
+try{cachedInsightsData=JSON.parse(localStorage.getItem('nat_insights_cache')||'null');}catch{}
 async function aiInsights(){
   if(!gk('ant')){return;}
   if(!cachedInsightsData||!cachedInsightsData.length){return;}
@@ -1046,7 +1055,7 @@ function clearBank(){if(!confirm('Clear all voice bank examples?'))return;localS
 function exportBank(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getBank(),null,2)],{type:'application/json'}));a.download='nat-voice-bank-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-window.addEventListener('load',loadSettings);
+window.addEventListener('load',()=>{loadSettings();if(cachedInsightsData&&cachedInsightsData.length)renderInsights(cachedInsightsData,'cached');});
 </script>
 </body>
 </html>
