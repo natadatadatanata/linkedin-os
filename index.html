@@ -260,12 +260,16 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
       <!-- INSIGHTS -->
       <div class="view on" id="view-insights">
         <div class="tb">
-          <div><div class="tb-t">Insights</div><div class="tb-s">Your LinkedIn performance at a glance</div></div>
-          <button class="btn" onclick="loadInsights()">Sync from Notion</button>
+          <div><div class="tb-t">Insights</div><div class="tb-s">AI-powered analysis of your LinkedIn performance</div></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn" onclick="loadInsights()">Sync from Notion</button>
+            <button class="btn-out" id="ai-insights-btn" onclick="aiInsights()" style="display:none;">AI Analysis</button>
+          </div>
         </div>
         <div id="ins-content">
           <div class="empty"><div class="empty-i">📊</div><div class="empty-t">Ready to sync</div><div class="empty-s">Click "Sync from Notion" to pull your post data and see what's working.</div></div>
         </div>
+        <div id="ai-insights-content" style="display:none;margin-top:12px;"></div>
       </div>
 
       <!-- WRITE POST -->
@@ -274,12 +278,21 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
         <div class="card"><div class="cl">Topic or inspiration</div><div class="ib"><textarea id="w-topic" rows="4" placeholder="Paste a link, describe a topic, share a data point, say what's on your mind…"></textarea></div></div>
         <div class="card">
           <div class="cl">Angle</div>
-          <div class="pills">
+          <div class="pills" id="angle-pills">
             <button class="pill on" data-v="contrarian" onclick="sp(this,'angle')">Contrarian take</button>
             <button class="pill" data-v="data" onclick="sp(this,'angle')">Data breakdown</button>
             <button class="pill" data-v="story" onclick="sp(this,'angle')">Personal story</button>
             <button class="pill" data-v="framework" onclick="sp(this,'angle')">Framework</button>
             <button class="pill" data-v="hot-take" onclick="sp(this,'angle')">Hot take</button>
+            <button class="pill" data-v="authority" onclick="sp(this,'angle')">Authority builder</button>
+            <button class="pill" data-v="tactical" onclick="sp(this,'angle')">Tactical how-to</button>
+            <button class="pill" data-v="myth" onclick="sp(this,'angle')">Myth buster</button>
+            <button class="pill" data-v="prediction" onclick="sp(this,'angle')">Prediction</button>
+            <button class="pill" data-v="lesson" onclick="sp(this,'angle')">Lesson learned</button>
+            <button class="pill" data-v="comparison" onclick="sp(this,'angle')">Before vs after</button>
+            <button class="pill" data-v="behind" onclick="sp(this,'angle')">Behind the scenes</button>
+            <button class="pill" data-v="case-study" onclick="sp(this,'angle')">Case study</button>
+            <button class="pill" data-v="trend" onclick="sp(this,'angle')">Trend analysis</button>
           </div>
         </div>
         <button class="btn btn-f" onclick="writePost()" id="write-btn">Write in my voice →</button>
@@ -401,15 +414,31 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
       <!-- VOICE BANK -->
       <div class="view" id="view-voice">
         <div class="tb">
-          <div><div class="tb-t">Voice Bank</div><div class="tb-s">Every saved reply trains the generator to sound more like you</div></div>
+          <div><div class="tb-t">Voice Bank</div><div class="tb-s">Every saved example trains the generator to sound more like you</div></div>
           <div style="display:flex;gap:6px;">
             <button class="btn-out" onclick="exportBank()">Export</button>
             <button class="btn-out" onclick="clearBank()" style="color:var(--red);border-color:rgba(255,59,48,0.2);">Clear</button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:10px;">
+          <div class="cl">Add voice example</div>
+          <div style="font-size:12px;color:var(--t2);margin-bottom:8px;">Paste any reply, comment, or post you wrote — the more examples, the better it matches your voice.</div>
+          <div class="save-row">
+            <textarea class="save-ta" id="vb-add-txt" rows="3" placeholder="Paste something you actually wrote on LinkedIn…"></textarea>
+            <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-self:flex-end;">
+              <select id="vb-add-type" style="font-size:11px;padding:4px 8px;border-radius:6px;border:0.5px solid rgba(0,0,0,0.1);background:var(--win);color:var(--t2);width:90px;">
+                <option value="post">Post</option>
+                <option value="reply">Reply</option>
+                <option value="comment">Comment</option>
+              </select>
+              <button class="btn-sm" onclick="addBankDirect()">Save</button>
+            </div>
+          </div>
+          <div class="status" id="vb-add-s"></div>
+        </div>
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:12px;color:var(--t2);">Save replies and comments you actually use — the more examples, the better it sounds like you.</span>
+            <span style="font-size:12px;color:var(--t2);">Your voice examples</span>
             <span style="font-size:11px;font-weight:600;color:var(--blue);" id="vb-count">0 examples</span>
           </div>
           <div id="vb-list"><div style="font-size:12px;color:var(--t3);padding:4px 0;">No examples yet.</div></div>
@@ -593,21 +622,41 @@ const voiceCtx=()=>{
   return'\n\nReal examples of how Nat actually writes — match this voice precisely:\n'+b.slice(-15).map((e,i)=>`${i+1}. "${e.text}"`).join('\n');
 };
 
-const BASE=`You are writing LinkedIn content for Natalia Gavrilovic. Crypto marketing and social media strategist, 4+ years in Web3, ex-CertiK Skynet (blockchain security analytics). Based in Ljubljana, Europe.
+const BASE=`You are ghostwriting LinkedIn posts for Natalia Gavrilovic. Crypto marketing and social media strategist, 4+ years in Web3, ex-CertiK Skynet (blockchain security analytics). Based in Ljubljana, Europe.
 
-ABSOLUTE RULES:
-- No hyphens anywhere
-- Max 1-2 lines per sentence, line break between every sentence
-- No hashtags, no emojis unless content truly calls for it
-- First line = single shocking hook, no preamble
-- Shorter is always better
-- Direct, confident, data-driven, human tone
+YOUR #1 JOB: Make this post INDISTINGUISHABLE from Nat's real posts. Study the example posts provided below and match EXACTLY:
+- Her sentence length and rhythm
+- Her paragraph breaks and whitespace
+- Her vocabulary and phrases she actually uses
+- Her level of specificity (she names real tools, protocols, numbers)
+- Her hook patterns — study the top performing ones
 
-FORBIDDEN:
+STRUCTURE RULES:
+- First line = single punchy hook, no preamble, no filler
+- One thought per line, line break between every sentence
+- Short paragraphs (1-3 lines max), generous whitespace
+- No hyphens anywhere in the text
+- No hashtags, no emojis unless the content truly calls for it
+- End with a punchy closer or call to engage — not generic
+
+VOICE RULES:
+- Sound like a real person sharing real experience, not an AI writing "content"
+- Be specific — name real protocols, tools, numbers, timelines
+- Confident but not arrogant. Direct but not preachy
+- Data-driven when making claims. Opinion is fine but back it up
+- Shorter is always better. Cut every unnecessary word
+- Write like she talks — casual, sharp, no corporate speak
+
+FORBIDDEN PATTERNS (these scream AI-written):
 - "X didn't just Y, it Z" / "It's not X... it's Y" / "This isn't just..."
 - "Not because of X. Because of Y." — combine into one sentence
-- "Here's what nobody is talking about" or similar
-- Three-part contrast / listicle openers / splitting one idea for drama`;
+- "Here's what nobody is talking about" or any variation
+- "Let that sink in" / "Read that again" / "I'll say it louder"
+- Three-part contrast / listicle openers / splitting one idea across lines for drama
+- Generic LinkedIn hooks like "I used to think X. Then I learned Y."
+- Overusing bold (**text**) for emphasis — use sparingly or not at all
+- Starting multiple paragraphs with the same word
+- Ending with "What do you think?" or similar generic CTAs`;
 
 // PARSE NOTION PROPS
 function parsePost(p){
@@ -633,7 +682,9 @@ async function loadInsights(){
   try{
     const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}}});
     const posts=data.results.map(parsePost).filter(p=>p.imp||p.likes||p.comments||p.reposts||p.saves);
+    cachedInsightsData=posts;
     if(!posts.length){el.innerHTML='<div class="empty"><div class="empty-i">📝</div><div class="empty-t">No data yet</div><div class="empty-s">Log posts with metrics marked as Posted in Notion. Come back once you have at least 5.</div></div>';return;}
+    const aiBtn=document.getElementById('ai-insights-btn');if(aiBtn&&gk('ant'))aiBtn.style.display='inline-block';
 
     const sorted=[...posts].sort((a,b)=>a.date.localeCompare(b.date));
     const total=posts.length;
@@ -703,6 +754,32 @@ function copyCtx(){
   });
 }
 
+// AI INSIGHTS — Claude analyzes your performance data
+let cachedInsightsData=null;
+async function aiInsights(){
+  if(!gk('ant')){return;}
+  if(!cachedInsightsData||!cachedInsightsData.length){return;}
+  const el=document.getElementById('ai-insights-content');
+  el.style.display='block';
+  el.innerHTML=`<div class="loading"><div class="spin"></div><span>Claude is analyzing your post performance…</span></div>`;
+  const btn=document.getElementById('ai-insights-btn');
+  btn.disabled=true;btn.textContent='Analyzing…';
+  try{
+    const posts=cachedInsightsData;
+    const sorted=[...posts].sort((a,b)=>b.engScore-a.engScore);
+    const postData=sorted.slice(0,20).map((p,i)=>{
+      return`${i+1}. "${p.hook}" | Topics: ${(p.topics||[]).join(', ')} | Type: ${p.postType} | Visual: ${p.hasVisual?'yes':'no'} | Imp: ${p.imp} | Likes: ${p.likes} | Comments: ${p.comments} | Reposts: ${p.reposts} | Saves: ${p.saves} | Score: ${p.engScore} | Date: ${p.date}`;
+    }).join('\n');
+    const analysis=await callClaude(
+      `You are a LinkedIn growth strategist analyzing post performance data for Natalia Gavrilovic (crypto marketing, Web3). Provide actionable, specific insights — not generic advice. Be direct and data-driven. Use her actual numbers.`,
+      `Here are my top ${Math.min(posts.length,20)} LinkedIn posts by engagement score:\n\n${postData}\n\nTotal posts analyzed: ${posts.length}\n\nGive me a sharp analysis covering:\n1. PATTERNS — What specific patterns do you see in my top performers vs lower ones? (hook style, topics, length, visuals)\n2. CONTENT STRATEGY — Based on the data, what should I post MORE of and what should I stop doing?\n3. HOOK ANALYSIS — Which of my hooks worked best and why? What hook patterns should I repeat?\n4. TIMING & FORMAT — Any patterns in visual vs text-only, post types, or topics that perform?\n5. NEXT 5 POSTS — Give me 5 specific post ideas based on what works, with suggested hooks.\n\nBe brutally honest. Use my actual numbers. No generic LinkedIn advice.`,
+      2500
+    );
+    el.innerHTML=`<div class="result" style="border-left-color:var(--blue);"><div class="rl">AI Analysis</div><div class="rb">${esc(analysis)}</div></div>`;
+  }catch(e){el.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
+  finally{btn.disabled=false;btn.textContent='AI Analysis';}
+}
+
 // WRITE POST — reads Notion top posts first, then calls Claude
 async function writePost(){
   const topic=document.getElementById('w-topic').value.trim();
@@ -716,17 +793,26 @@ async function writePost(){
   if(gk('notion')){
     try{
       const data=await notionRead({filter:{property:'Stage',status:{equals:'Posted'}},sorts:[{property:'Engagement Score',direction:'descending'}]});
-      const top=data.results.slice(0,5).map(parsePost).filter(p=>p.hook);
+      const top=data.results.slice(0,5).map(p=>{
+        const parsed=parsePost(p);
+        const props=p.properties;
+        const fullText=(props['Full text']?.rich_text||[]).map(r=>r.plain_text).join('')||'';
+        return{...parsed,fullText};
+      }).filter(p=>p.hook);
       if(top.length){
-        topPostsCtx='\n\nNat\'s top performing posts — study the hook style, tone and structure:\n'+top.map((p,i)=>`${i+1}. Hook: "${p.hook}" (score: ${p.engScore})`).join('\n');
+        topPostsCtx='\n\nNat\'s top performing LinkedIn posts — study the EXACT structure, line breaks, sentence length, hook style, and tone. Match this voice PRECISELY:\n'+top.map((p,i)=>{
+          const ft=p.fullText?`\nFull post:\n${p.fullText.slice(0,800)}`:'';
+          return`\n--- POST ${i+1} (score: ${p.engScore}) ---\nHook: "${p.hook}"${ft}`;
+        }).join('\n');
       }
     }catch(e){/* proceed without notion context */}
   }
 
-  const angles={contrarian:'Take the contrarian angle — challenge mainstream with data.',data:'Lead with the most shocking data point. Build around numbers.',story:'Frame as personal experience from working in crypto.',framework:'Structure as a clear framework people can learn from.','hot-take':'Bold opinionated hot take that sparks debate.'};
+  const angles={contrarian:'Take the contrarian angle — challenge mainstream thinking with data or experience.',data:'Lead with the most shocking data point. Build around numbers and proof.',story:'Frame as personal experience from working in crypto/marketing. Raw, real, specific.',framework:'Structure as a clear framework or mental model people can save and reuse.','hot-take':'Bold opinionated hot take that sparks debate and strong reactions.',authority:'Position as expert insight from years of hands-on Web3/marketing experience. Teach something specific.',tactical:'Step by step tactical breakdown. Specific, actionable, no fluff. People should screenshot this.',myth:'Call out a common misconception and dismantle it with evidence or experience.',prediction:'Make a specific forward-looking prediction with reasoning. Be bold but back it up.',lesson:'Share a hard lesson learned from a real experience — what went wrong and the takeaway.',comparison:'Show a clear before/after or X vs Y comparison that reveals an insight.',behind:'Pull back the curtain on how something actually works behind the scenes in crypto/marketing.',
+    'case-study':'Break down a real example — what happened, why it worked or failed, and the lesson.',trend:'Analyze a current trend — where it came from, where it is headed, and what it means.'};
   try{
-    const text=await callClaude(BASE+voiceCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post — formatted exactly as it should appear, line breaks between sentences, hook first, punchy ending. No commentary, just the post.',
-      `Topic: ${topic}\nAngle: ${angles[angle]||angles.contrarian}\n\nWrite the post.`,2000);
+    const text=await callClaude(BASE+voiceCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post. CRITICAL: Match the EXACT style of the example posts above — same sentence length, same rhythm, same level of specificity, same formatting. The post should be indistinguishable from the examples. Format exactly as it should appear on LinkedIn: line breaks between sentences, hook first, punchy ending. Output ONLY the post text, no labels, no commentary.',
+      `Topic: ${topic}\nAngle: ${angles[angle]||angles.contrarian}\n\nWrite the post. Remember: it must read like it was written by the same person who wrote those example posts. Match the voice exactly.`,2000);
     res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="rb" id="draft-txt">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft()">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
   }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
   finally{btn.disabled=false;btn.textContent='Write in my voice →';}
@@ -890,13 +976,34 @@ async function logPost(){
 }
 
 // VOICE BANK
-function saveBank(mode){
+async function saveBank(mode){
   const id=mode==='reply'?'srp-txt':'scm-txt';const sid=mode==='reply'?'srp-s':'scm-s';
   const text=document.getElementById(id)?.value.trim();
   if(!text){st(sid,'Type the text you used first.','err');return;}
   const b=getBank();b.push({text,type:mode,savedAt:new Date().toISOString()});setBank(b);
   document.getElementById(id).value='';
-  st(sid,`Saved. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok');
+  st(sid,`Saved locally. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok',0);
+  // Auto-sync to Notion
+  if(gk('notion')&&gk('db')){
+    try{
+      const dbId=fmtDb(gk('db'));
+      await notionWrite({
+        parent:{database_id:dbId},
+        properties:{
+          "Post":{title:[{text:{content:`[Voice Bank] ${mode}: ${text.slice(0,80)}${text.length>80?'…':''}`}}]},
+          "Hook":{rich_text:[{text:{content:text.slice(0,200)}}]},
+          "Full text":{rich_text:[{text:{content:text.slice(0,2000)}}]},
+          "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
+          "Topic":{multi_select:[{name:"Voice Bank"}]},
+          "Post Type":{select:{name:"Voice Bank"}},
+          "Stage":{status:{name:"Voice Bank"}}
+        }
+      });
+      st(sid,`Saved to voice bank (${b.length}) + synced to Notion ✓`,'ok');
+    }catch(e){
+      st(sid,`Saved locally (${b.length}). Notion sync failed: ${e.message}`,'err',5000);
+    }
+  }
 }
 function renderBank(){
   const b=getBank();
@@ -908,6 +1015,31 @@ function renderBank(){
     const date=new Date(e.savedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
     return`<div class="vbi"><div style="flex:1;"><span class="vbt">${e.type||'reply'}</span><div class="vbtx">${esc(e.text)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;"><span class="vbm">${date}</span><button class="vbd" onclick="delBank(${i})">✕</button></div></div>`;
   }).join('');
+}
+function addBankDirect(){
+  const text=document.getElementById('vb-add-txt')?.value.trim();
+  const type=document.getElementById('vb-add-type')?.value||'post';
+  if(!text){st('vb-add-s','Paste something you wrote first.','err');return;}
+  const b=getBank();b.push({text,type,savedAt:new Date().toISOString()});setBank(b);
+  document.getElementById('vb-add-txt').value='';
+  st('vb-add-s',`Saved. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok');
+  renderBank();
+  // Auto-sync to Notion
+  if(gk('notion')&&gk('db')){
+    const dbId=fmtDb(gk('db'));
+    notionWrite({
+      parent:{database_id:dbId},
+      properties:{
+        "Post":{title:[{text:{content:`[Voice Bank] ${type}: ${text.slice(0,80)}${text.length>80?'…':''}`}}]},
+        "Hook":{rich_text:[{text:{content:text.slice(0,200)}}]},
+        "Full text":{rich_text:[{text:{content:text.slice(0,2000)}}]},
+        "Posted on":{date:{start:new Date().toISOString().slice(0,10)}},
+        "Topic":{multi_select:[{name:"Voice Bank"}]},
+        "Post Type":{select:{name:"Voice Bank"}},
+        "Stage":{status:{name:"Voice Bank"}}
+      }
+    }).then(()=>{st('vb-add-s',`Saved (${b.length}) + synced to Notion ✓`,'ok');}).catch(()=>{});
+  }
 }
 function delBank(i){const b=getBank();b.splice(i,1);setBank(b);renderBank();}
 function clearBank(){if(!confirm('Clear all voice bank examples?'))return;localStorage.removeItem('nat_vb');renderBank();}
