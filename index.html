@@ -503,6 +503,15 @@ select{width:100%;background:var(--win);border:0.5px solid rgba(0,0,0,0.1);borde
           </div>
           <div class="status" id="db-s"></div>
         </div>
+        <div class="card">
+          <div class="cl" style="margin-bottom:6px;">Voice Bank Page ID</div>
+          <input type="text" class="sf" id="notion-vb" placeholder="328a48bb-eef1-8123-8393-c67bf057af09">
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn-sm" onclick="saveKey('vb')">Save</button>
+          </div>
+          <div class="status" id="vb-s"></div>
+          <p style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.7;">The Notion page ID where voice bank examples are saved. Open the page in Notion → copy the ID from the URL. Make sure the page is shared with your integration.</p>
+        </div>
         <div class="info">
           <strong>How it works:</strong> This app is hosted on Netlify. Replies and comments call the Anthropic API directly from your browser. Insights, Write Post, and Log Post go through Netlify server functions that talk to Notion — this fixes the CORS restriction. Your keys are saved locally in your browser.
         </div>
@@ -540,8 +549,8 @@ const getBank=()=>{try{return JSON.parse(localStorage.getItem('nat_vb')||'[]');}
 const setBank=b=>localStorage.setItem('nat_vb',JSON.stringify(b));
 
 function saveKey(type){
-  const idMap={ant:'api-key',notion:'notion-token',db:'notion-db'};
-  const sMap={ant:'ant-s',notion:'notion-s',db:'db-s'};
+  const idMap={ant:'api-key',notion:'notion-token',db:'notion-db',vb:'notion-vb'};
+  const sMap={ant:'ant-s',notion:'notion-s',db:'db-s',vb:'vb-s'};
   const k=document.getElementById(idMap[type]).value.trim();
   if(k){sessionStorage.setItem('nat_'+type,k);localStorage.setItem('nat_'+type,k);}
   st(sMap[type],'Saved ✓','ok');
@@ -580,7 +589,7 @@ function st(id,msg,type,dur=3000){
 }
 
 function loadSettings(){
-  const fields={ant:'api-key',notion:'notion-token',db:'notion-db'};
+  const fields={ant:'api-key',notion:'notion-token',db:'notion-db',vb:'notion-vb'};
   Object.entries(fields).forEach(([k,id])=>{const v=gk(k);const el=document.getElementById(id);if(v&&el)el.value=v;});
 }
 
@@ -1186,8 +1195,8 @@ async function logPost(){
   finally{btn.disabled=false;btn.textContent='Save to Notion →';}
 }
 
-// VOICE BANK PAGE ID (Notion page for storing voice examples)
-const VB_PAGE_ID='328a48bb-eef1-8123-8393-c67bf057af09';
+// VOICE BANK PAGE ID (configurable in Settings)
+function getVbPageId(){return gk('vb')||'';}
 
 async function notionAppend(pageId,text){
   const notionToken=gk('notion');
@@ -1210,9 +1219,11 @@ async function saveBank(mode){
   st(sid,`Saved locally. ${b.length} example${b.length!==1?'s':''} in voice bank.`,'ok',0);
   // Sync to Voice Bank page in Notion
   if(gk('notion')){
+    const vbId=getVbPageId();
+    if(!vbId){st(sid,`Saved locally (${b.length}). Add Voice Bank Page ID in Settings to sync to Notion.`,'err',5000);return;}
     try{
       const date=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-      await notionAppend(VB_PAGE_ID,`[${mode}] ${date} — ${text}`);
+      await notionAppend(vbId,`[${mode}] ${date} — ${text}`);
       st(sid,`Saved to voice bank (${b.length}) + synced to Notion ✓`,'ok');
     }catch(e){
       st(sid,`Saved locally (${b.length}). Notion sync failed: ${e.message}`,'err',5000);
