@@ -1024,11 +1024,11 @@ async function writePost(){
   try{
     const text=await callClaude(BASE+voiceCtx()+perfCtx()+topPostsCtx+'\n\nWrite ONE complete LinkedIn post. CRITICAL RULES:\n1. Hook MUST be under 60 characters and contain the accusation or shocking unit\n2. Post MUST be 1,200+ characters (longer posts get 3x engagement)\n3. Use the Prosecution Structure: Allegation → Evidence → Mechanism → Comparison → Judgment\n4. End with a judgment, reframe, or provocative question — NEVER recap or summarize\n5. Every number must imply mispricing, waste, or distortion\n6. Match the voice from example posts EXACTLY — argument-driven, diagnostic, mechanism-heavy\n7. Format for LinkedIn: line breaks between sentences, generous white space\n8. Output ONLY the post text, no labels, no commentary.',
       `Topic: ${topic}\nAngle: ${angles[angle]||angles.contrarian}\n\nWrite the post. It must be diagnostic and argument-driven — start with a position, not a topic. Make it indistinguishable from Nat's real posts.`,2500);
-    res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="draft-hint">Click to edit directly</div><div class="rb draft-edit" id="draft-txt" contenteditable="true">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft()">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
+    res.innerHTML=`<div style="margin-top:12px;"><div class="result"><div class="rl">Draft</div><div class="draft-hint">Click to edit directly</div><div class="rb draft-edit" id="draft-txt" contenteditable="true">${esc(text)}</div><div style="display:flex;gap:6px;"><button class="btn-sm" onclick="copyDraft(event)">Copy post</button><button class="btn-out" onclick="writePost()">Regenerate</button></div></div></div>`;
   }catch(e){res.innerHTML=`<div class="ebox">${esc(e.message)}</div>`;}
   finally{btn.disabled=false;btn.textContent='Write in my voice →';}
 }
-function copyDraft(){navigator.clipboard.writeText(document.getElementById('draft-txt')?.innerText||'').then(()=>{event.target.textContent='Copied ✓';setTimeout(()=>event.target.textContent='Copy post',2000);});}
+function copyDraft(ev){const btn=ev?.currentTarget||ev?.target;navigator.clipboard.writeText(document.getElementById('draft-txt')?.innerText||'').then(()=>{if(!btn)return;btn.textContent='Copied ✓';setTimeout(()=>btn.textContent='Copy post',2000);});}
 
 // REPLIES
 async function genReplies(){
